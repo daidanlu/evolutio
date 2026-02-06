@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Action, MatchResult } from "./types";
+import { GameGrid } from "./GameGrid";
 
 // --- Mock Data Generator ---
 // This mimics the Rust backend logic for frontend testing
@@ -37,6 +38,7 @@ function App() {
   const [logs, setLogs] = useState<string[]>([]);
   // Ref to auto-scroll to the bottom of logs
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const [matchData, setMatchData] = useState<MatchResult | null>(null);
 
   // --- Simulation Handler ---
   const runSimulation = async () => {
@@ -46,6 +48,7 @@ function App() {
     // 2. Simulate delay (fake async calculation)
     setTimeout(() => {
       const result = mockSimulation();
+      setMatchData(result);
 
       // 3. Format result into readable strings
       const newLogs = result.rounds.map((r, i) =>
@@ -112,6 +115,9 @@ function App() {
         <main className="flex-1 bg-black border border-gray-700 rounded p-4 font-mono text-sm overflow-y-auto shadow-inner">
           <p className="text-gray-500">System ready...</p>
           <p className="text-gray-500">Waiting for input...</p>
+
+          {/* Insert visual component (only display if data is available) */}
+          {matchData && <GameGrid rounds={matchData.rounds} />}
 
           {/* Mapping through the logs array to render lines dynamically */}
           {logs.map((log, index) => (

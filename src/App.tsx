@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Action, MatchResult } from "./types";
 import { GameGrid } from "./GameGrid";
+import { StrategySelector } from "./StrategySelector";
+import { STRATEGIES } from "./strategies";
 
 // --- Mock Data Generator ---
 // This mimics the Rust backend logic for frontend testing
@@ -14,9 +16,9 @@ function mockSimulation(): MatchResult {
   for (let i = 0; i < 10; i++) {
     const p1: Action = Math.random() > 0.5 ? "Cooperate" : "Defect";
     const p2: Action = Math.random() > 0.5 ? "Cooperate" : "Defect";
-
+    
     rounds.push([p1, p2]);
-
+    
     // Calculate simple payoff (Standard Prisoner's Dilemma)
     if (p1 === "Defect" && p2 === "Cooperate") p1Score += 5;
     else if (p1 === "Cooperate" && p2 === "Cooperate") { p1Score += 3; p2Score += 3; }
@@ -36,14 +38,24 @@ function mockSimulation(): MatchResult {
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [logs, setLogs] = useState<string[]>([]);
+  
   // Ref to auto-scroll to the bottom of logs
   const logsEndRef = useRef<HTMLDivElement>(null);
   const [matchData, setMatchData] = useState<MatchResult | null>(null);
 
+  // --- State for Strategy Selection ---
+  // Initialized with the first and second strategies from list
+  const [p1Strategy, setP1Strategy] = useState(STRATEGIES[0].id);
+  const [p2Strategy, setP2Strategy] = useState(STRATEGIES[1].id);
+
   // --- Simulation Handler ---
   const runSimulation = async () => {
-    // 1. Add loading logs
-    setLogs(prev => [...prev, "> Initializing Mock Sequence...", "> Connecting to Neural Net..."]);
+    // 1. Add loading logs with SELECTED strategies
+    setLogs(prev => [
+      ...prev, 
+      `> Loading Configuration: [${p1Strategy}] VS [${p2Strategy}]...`, 
+      "> Initializing Mock Sequence..."
+    ]);
 
     // 2. Simulate delay (fake async calculation)
     setTimeout(() => {
@@ -51,8 +63,8 @@ function App() {
       setMatchData(result);
 
       // 3. Format result into readable strings
-      const newLogs = result.rounds.map((r, i) =>
-        `Round ${i + 1}: P1 uses ${r[0]} | P2 uses ${r[1]}`
+      const newLogs = result.rounds.map((r, i) => 
+        `Round ${i+1}: P1 uses ${r[0]} | P2 uses ${r[1]}`
       );
 
       newLogs.push(`----------------------------------`);
@@ -90,20 +102,24 @@ function App() {
 
       {/* Main Layout */}
       <div className="flex flex-1 gap-4 overflow-hidden">
-
+        
         {/* Left Side: Controls */}
         <aside className="w-64 border-r border-gray-700 pr-4 flex flex-col gap-4">
-          <div className="p-3 bg-gray-800 rounded border border-gray-600">
-            <h3 className="text-sm font-bold text-white mb-2">Player 1</h3>
-            <div className="text-xs text-gray-400">Tit-For-Tat</div>
-          </div>
-          <div className="p-3 bg-gray-800 rounded border border-gray-600">
-            <h3 className="text-sm font-bold text-white mb-2">Player 2</h3>
-            <div className="text-xs text-gray-400">Always Defect</div>
-          </div>
-
-          {/*  Connected the onClick handler here */}
-          <button
+          
+          {/* Strategy Selectors instead of static divs */}
+          <StrategySelector 
+            label="Player 1 (The Hero)" 
+            selectedId={p1Strategy} 
+            onChange={setP1Strategy} 
+          />
+          
+          <StrategySelector 
+            label="Player 2 (The Rival)" 
+            selectedId={p2Strategy} 
+            onChange={setP2Strategy} 
+          />
+          
+          <button 
             onClick={runSimulation}
             className="mt-auto py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded shadow-lg transition-all active:scale-95"
           >
@@ -115,7 +131,7 @@ function App() {
         <main className="flex-1 bg-black border border-gray-700 rounded p-4 font-mono text-sm overflow-y-auto shadow-inner">
           <p className="text-gray-500">System ready...</p>
           <p className="text-gray-500">Waiting for input...</p>
-
+          
           {/* Insert visual component (only display if data is available) */}
           {matchData && <GameGrid rounds={matchData.rounds} />}
 
@@ -125,7 +141,7 @@ function App() {
               <span className="text-green-400">{">"}</span> {log}
             </p>
           ))}
-
+          
           {/* Invisible anchor for auto-scrolling */}
           <div ref={logsEndRef} />
         </main>

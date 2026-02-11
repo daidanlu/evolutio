@@ -1,51 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Action, MatchResult } from "./types";
+import { MatchResult } from "./types";
 import { GameGrid } from "./GameGrid";
 import { StrategySelector } from "./StrategySelector";
 import { STRATEGIES } from "./strategies";
 import { SettingsPanel } from "./SettingsPanel";
 
-// --- Mock Data Generator ---
-// This mimics the Rust backend logic for frontend testing
-function mockSimulation(totalRounds: number): MatchResult {
-  const rounds: [Action, Action][] = [];
-  let p1Score = 0;
-  let p2Score = 0;
-
-  // Simulate rounds of random moves
-  for (let i = 0; i < totalRounds; i++) {
-    const p1: Action = Math.random() > 0.5 ? "Cooperate" : "Defect";
-    const p2: Action = Math.random() > 0.5 ? "Cooperate" : "Defect";
-
-    rounds.push([p1, p2]);
-
-    // Calculate simple payoff (Standard Prisoner's Dilemma)
-    if (p1 === "Defect" && p2 === "Cooperate") p1Score += 5;
-    else if (p1 === "Cooperate" && p2 === "Cooperate") { p1Score += 3; p2Score += 3; }
-    else if (p1 === "Defect" && p2 === "Defect") { p1Score += 1; p2Score += 1; }
-    else if (p1 === "Cooperate" && p2 === "Defect") p2Score += 5;
-  }
-
-  return {
-    player_name: "Tit-For-Tat (Mock)",
-    opponent_name: "Random (Mock)",
-    rounds,
-    player_score: p1Score,
-    opponent_score: p2Score
-  };
-}
-
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [logs, setLogs] = useState<string[]>([]);
-
-  // Ref to auto-scroll to the bottom of logs
   const logsEndRef = useRef<HTMLDivElement>(null);
   const [matchData, setMatchData] = useState<MatchResult | null>(null);
 
   // --- State for Strategy Selection ---
-  // Initialized with the first and second strategies from list
   const [p1Strategy, setP1Strategy] = useState(STRATEGIES[0].id);
   const [p2Strategy, setP2Strategy] = useState(STRATEGIES[1].id);
 
@@ -54,32 +21,47 @@ function App() {
 
   // --- Simulation Handler ---
   const runSimulation = async () => {
-    // 1. Add loading logs with SELECTED strategies
+    // 1. UI Feedback
     setLogs(prev => [
       ...prev,
-      `> Loading Configuration: [${p1Strategy}] VS [${p2Strategy}]...`,
-      "> Initializing Mock Sequence..."
+      `> Initiating Uplink: [${p1Strategy}] VS [${p2Strategy}]`,
+      `> Target: ${rounds} Rounds...`,
+      `> Waiting for Core Engine response...`
     ]);
 
-    // 2. Simulate delay (fake async calculation)
-    setTimeout(() => {
-      const result = mockSimulation(rounds);
-      setMatchData(result);
+    try {
+      // 2. Call the Rust Backend
+      // 'run_game' matches the function name in lib.rs
+      // { p1Id, p2Id, rounds } matches the arguments in Rust (p1_id, p2_id, rounds)
+      const result = await invoke<MatchResult>("run_game", {
+        p1Id: p1Strategy,
+        p2Id: p2Strategy,
+        rounds: rounds
+      });
 
-      // 3. Format result into readable strings
-      const newLogs = result.rounds.map((r, i) =>
-        `Round ${i + 1}: P1 uses ${r[0]} | P2 uses ${r[1]}`
-      );
+      // 3. Process the result
+      setTimeout(() => {
+        setMatchData(result);
 
-      newLogs.push(`----------------------------------`);
-      newLogs.push(`RESULT: P1 (${result.player_score}) - P2 (${result.opponent_score})`);
+        // Format logs from the real data
+        const newLogs = result.rounds.map((r, i) =>
+          `Round ${i + 1}: P1 [${r[0]}] | P2 [${r[1]}]`
+        );
 
-      // 4. Update UI
-      setLogs(prev => [...prev, ...newLogs]);
-    }, speed);
+        newLogs.push(`----------------------------------`);
+        newLogs.push(`RESULT: ${result.player_name} (${result.player_score}) - ${result.opponent_name} (${result.opponent_score})`);
+        newLogs.push(`> Simulation Complete.`);
+
+        setLogs(prev => [...prev, ...newLogs]);
+      }, speed);
+
+    } catch (error) {
+      console.error("Rust Error:", error);
+      setLogs(prev => [...prev, `[CRITICAL ERROR] Kernel Panic: ${error}`]);
+    }
   };
 
-  // Auto-scroll effect: whenever 'logs' change, scroll to bottom
+  // Auto-scroll effect
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
@@ -110,7 +92,6 @@ function App() {
         {/* Left Side: Controls */}
         <aside className="w-64 border-r border-gray-700 pr-4 flex flex-col gap-4">
 
-          {/* Strategy Selectors instead of static divs */}
           <StrategySelector
             label="Player 1 (The Hero)"
             selectedId={p1Strategy}
@@ -143,17 +124,14 @@ function App() {
           <p className="text-gray-500">System ready...</p>
           <p className="text-gray-500">Waiting for input...</p>
 
-          {/* Insert visual component (only display if data is available) */}
           {matchData && <GameGrid rounds={matchData.rounds} />}
 
-          {/* Mapping through the logs array to render lines dynamically */}
           {logs.map((log, index) => (
             <p key={index} className="mb-1">
               <span className="text-green-400">{">"}</span> {log}
             </p>
           ))}
 
-          {/* Invisible anchor for auto-scrolling */}
           <div ref={logsEndRef} />
         </main>
       </div>

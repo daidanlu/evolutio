@@ -61,6 +61,26 @@ impl Strategy for AlwaysDefect {
     }
 }
 
+// --- Strategy C: Grim Trigger ---
+// // Logic: Default is cooperation. However, if any betrayal by the opponent is detected in the past, the defect of Grim Trigger will be permanent.
+pub struct GrimTrigger;
+
+impl Strategy for GrimTrigger {
+    fn name(&self) -> String {
+        "Grim Trigger".to_string()
+    }
+
+    fn next_move(&self, history: &[Round]) -> Action {
+        let has_opponent_cheated = history.iter().any(|(_, opp)| *opp == Action::Defect);
+
+        if has_opponent_cheated {
+            Action::Defect
+        } else {
+            Action::Cooperate
+        }
+    }
+}
+
 // 4. Strategy Factory (The Builder)
 // A helper function to create a Strategy object by name.
 // Returns Box<dyn Strategy> (Trait Object) to allow dynamic dispatch.
@@ -68,6 +88,7 @@ pub fn create_strategy(id: &str) -> Box<dyn Strategy> {
     match id {
         "tit_for_tat" => Box::new(TitForTat),
         "always_defect" => Box::new(AlwaysDefect),
+        "grim_trigger" => Box::new(GrimTrigger),
         // Default to AlwaysDefect if the ID is unknown
         _ => Box::new(AlwaysDefect),
     }

@@ -1,4 +1,5 @@
 use serde::{ Deserialize, Serialize };
+use rand::prelude::*;
 
 // 1. Basic Data Structures (The Atoms)
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -81,6 +82,35 @@ impl Strategy for GrimTrigger {
     }
 }
 
+// --- Strategy D: Always Cooperate ---
+pub struct AlwaysCooperate;
+
+impl Strategy for AlwaysCooperate {
+    fn name(&self) -> String {
+        "Always Cooperate".to_string()
+    }
+    fn next_move(&self, _history: &[Round]) -> Action {
+        Action::Cooperate
+    }
+}
+
+// --- Strategy E: Random ---
+pub struct Random;
+
+impl Strategy for Random {
+    fn name(&self) -> String {
+        "Random".to_string()
+    }
+    fn next_move(&self, _history: &[Round]) -> Action {
+        let mut rng = rand::rng();
+        if rng.random_bool(0.5) {
+            Action::Cooperate
+        } else {
+            Action::Defect
+        }
+    }
+}
+
 // 4. Strategy Factory (The Builder)
 // A helper function to create a Strategy object by name.
 // Returns Box<dyn Strategy> (Trait Object) to allow dynamic dispatch.
@@ -89,7 +119,9 @@ pub fn create_strategy(id: &str) -> Box<dyn Strategy> {
         "tit_for_tat" => Box::new(TitForTat),
         "always_defect" => Box::new(AlwaysDefect),
         "grim_trigger" => Box::new(GrimTrigger),
-        // Default to AlwaysDefect if the ID is unknown
+        "always_cooperate" => Box::new(AlwaysCooperate),
+        "random" => Box::new(Random),
+        // Default to AlwaysDefect if unknown id
         _ => Box::new(AlwaysDefect),
     }
 }

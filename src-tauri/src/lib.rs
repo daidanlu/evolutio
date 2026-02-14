@@ -111,6 +111,35 @@ impl Strategy for Random {
     }
 }
 
+// --- Strategy F: Pavlov (Win-Stay, Lose-Shift) ---
+pub struct Pavlov;
+
+impl Strategy for Pavlov {
+    fn name(&self) -> String {
+        "Pavlov".to_string()
+    }
+
+    fn next_move(&self, history: &[Round]) -> Action {
+        match history.last() {
+            None => Action::Cooperate, // default cooperate
+            Some(&(my_last, opp_last)) => {
+                let (my_score, _) = calculate_payoff(my_last, opp_last);
+
+                // Logic: if win (>=3) stay, otherwise shift
+                if my_score >= 3 {
+                    my_last // Win-Stay
+                } else {
+                    // Lose-Shift
+                    match my_last {
+                        Action::Cooperate => Action::Defect,
+                        Action::Defect => Action::Cooperate,
+                    }
+                }
+            }
+        }
+    }
+}
+
 // 4. Strategy Factory (The Builder)
 // A helper function to create a Strategy object by name.
 // Returns Box<dyn Strategy> (Trait Object) to allow dynamic dispatch.
@@ -121,6 +150,7 @@ pub fn create_strategy(id: &str) -> Box<dyn Strategy> {
         "grim_trigger" => Box::new(GrimTrigger),
         "always_cooperate" => Box::new(AlwaysCooperate),
         "random" => Box::new(Random),
+        "pavlov" => Box::new(Pavlov),
         // Default to AlwaysDefect if unknown id
         _ => Box::new(AlwaysDefect),
     }
@@ -150,12 +180,9 @@ fn run_game(p1_id: String, p2_id: String, rounds: u32) -> MatchResult {
         history.push((a1, a2));
 
         // 4. calculate scores
-        let (s1, s2) = match (a1, a2) {
-            (Action::Defect, Action::Cooperate) => (5, 0),
-            (Action::Cooperate, Action::Cooperate) => (3, 3),
-            (Action::Defect, Action::Defect) => (1, 1),
-            (Action::Cooperate, Action::Defect) => (0, 5),
-        };
+        let (s1, s2) = calculate_payoff(a1, a2);
+        p1_score += s1;
+        p2_score += s2;
         p1_score += s1;
         p2_score += s2;
     }
@@ -183,4 +210,14 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![greet_engine, run_game])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+// Auxiliary function for calculating single-game scores
+pub fn calculate_payoff(a1: Action, a2: Action) -> (i32, i32) {
+    match (a1, a2) {
+        (Action::Defect, Action::Cooperate) => (5, 0),
+        (Action::Cooperate, Action::Cooperate) => (3, 3),
+        (Action::Defect, Action::Defect) => (1, 1),
+        (Action::Cooperate, Action::Defect) => (0, 5),
+    }
 }

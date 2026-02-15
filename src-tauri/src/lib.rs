@@ -196,6 +196,78 @@ fn run_game(p1_id: String, p2_id: String, rounds: u32) -> MatchResult {
     }
 }
 
+// --- Tournament Mode ---
+#[derive(Debug, Serialize)]
+pub struct TournamentResult {
+    pub ranking: Vec<(String, i32)>, // A list of (strategy names, total scores)
+}
+
+#[tauri::command]
+fn run_tournament(rounds: u32) -> TournamentResult {
+    // 1. Define the IDs of all participants
+    let all_ids = vec![
+        "tit_for_tat",
+        "always_defect",
+        "grim_trigger",
+        "always_cooperate",
+        "random",
+        "pavlov"
+    ];
+
+    // 2. Initialize the scoreboard (index corresponds to all_ids)
+    let mut total_scores = vec![0; all_ids.len()];
+
+    // 3. Two-on-one matches (double round-robin)
+    for i in 0..all_ids.len() {
+        for j in 0..all_ids.len() {
+            // According to Axelrod's rules: Round Robin includes oneself.
+            // Recreate instances because Box is one-time use
+            let p1_id = all_ids[i];
+            let p2_id = all_ids[j];
+
+            let p1 = create_strategy(p1_id);
+            let p2 = create_strategy(p2_id);
+
+            let mut history = Vec::with_capacity(rounds as usize);
+            let mut s1_sum = 0;
+
+            for _ in 0..rounds {
+                let a1 = p1.next_move(&history);
+                // Flip the view of P2
+                let history_for_p2: Vec<Round> = history
+                    .iter()
+                    .map(|(my, opp)| (*opp, *my))
+                    .collect();
+                let a2 = p2.next_move(&history_for_p2);
+
+                history.push((a1, a2));
+
+                let (s1, _) = calculate_payoff(a1, a2);
+                s1_sum += s1;
+            }
+
+            total_scores[i] += s1_sum;
+            // Because it's a double loop (0..N, 0..N), when the loop reaches j vs i, it will be calculated again, so only the score of the current main view i needs to sum up.
+        }
+    }
+
+    // 4. Pack the results and sort them
+    let mut ranking: Vec<(String, i32)> = all_ids
+        .into_iter()
+        .zip(total_scores.into_iter())
+        .map(|(id, score)| {
+            // Instantiate an object to get its name
+            let temp_strat = create_strategy(id);
+            (temp_strat.name(), score)
+        })
+        .collect();
+
+    // Sort by score from highest to lowest
+    ranking.sort_by(|a, b| b.1.cmp(&a.1));
+
+    TournamentResult { ranking }
+}
+
 // 5. Tauri Commands (The Bridge)
 #[tauri::command]
 fn greet_engine() -> String {
@@ -207,7 +279,7 @@ pub fn run() {
     tauri::Builder
         ::default()
         // register run_game
-        .invoke_handler(tauri::generate_handler![greet_engine, run_game])
+        .invoke_handler(tauri::generate_handler![greet_engine, run_game, run_tournament])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

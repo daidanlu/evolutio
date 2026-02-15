@@ -61,6 +61,39 @@ function App() {
     }
   };
 
+
+
+  const runTournament = async () => {
+    setLogs(prev => [
+      ...prev,
+      "==================================",
+      "> STARTING GRAND TOURNAMENT...",
+      `> Match Format: Round Robin, ${rounds} rounds each.`
+    ]);
+
+    try {
+      interface TournamentResult {
+        ranking: [string, number][]; // Tuple array
+      }
+
+      const result = await invoke<TournamentResult>("run_tournament", { rounds });
+
+      const rankLogs = result.ranking.map((entry, index) =>
+        `#${index + 1} ${entry[0].padEnd(18)}: ${entry[1]} pts`
+      );
+
+      setLogs(prev => [
+        ...prev,
+        ...rankLogs,
+        "=================================="
+      ]);
+
+    } catch (error) {
+      console.error(error);
+      setLogs(prev => [...prev, `[ERROR] Tournament Failed: ${error}`]);
+    }
+  };
+
   // Auto-scroll effect
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -110,6 +143,13 @@ function App() {
             rounds={rounds}
             setRounds={setRounds}
           />
+
+          <button
+            onClick={runTournament}
+            className="mb-2 py-2 border border-yellow-600 text-yellow-500 font-bold rounded hover:bg-yellow-900/30 transition-all"
+          >
+            RUN TOURNAMENT
+          </button>
 
           <button
             onClick={runSimulation}

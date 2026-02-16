@@ -18,6 +18,7 @@ function App() {
 
   const [speed, setSpeed] = useState(100); // delay=100ms
   const [rounds, setRounds] = useState(20); // rounds=20
+  const [noise, setNoise] = useState(0);
 
   // --- Simulation Handler ---
   const runSimulation = async () => {
@@ -36,7 +37,8 @@ function App() {
       const result = await invoke<MatchResult>("run_game", {
         p1Id: p1Strategy,
         p2Id: p2Strategy,
-        rounds: rounds
+        rounds: rounds,
+        noise: noise
       });
 
       // 3. Process the result
@@ -76,7 +78,7 @@ function App() {
         ranking: [string, number][]; // Tuple array
       }
 
-      const result = await invoke<TournamentResult>("run_tournament", { rounds });
+      const result = await invoke<TournamentResult>("run_tournament", { rounds, noise });
 
       const rankLogs = result.ranking.map((entry, index) =>
         `#${index + 1} ${entry[0].padEnd(18)}: ${entry[1]} pts`
@@ -142,6 +144,8 @@ function App() {
             setSpeed={setSpeed}
             rounds={rounds}
             setRounds={setRounds}
+            noise={noise}
+            setNoise={setNoise}
           />
 
           <button

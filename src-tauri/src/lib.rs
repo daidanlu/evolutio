@@ -8,6 +8,16 @@ pub enum Action {
     Defect,
 }
 
+impl Action {
+    // Flip
+    fn toggle(&self) -> Self {
+        match self {
+            Action::Cooperate => Action::Defect,
+            Action::Defect => Action::Cooperate,
+        }
+    }
+}
+
 // Record of a single round: (My Action, Opponent's Action)
 // For a strategy, the history is viewed from its own perspective.
 pub type Round = (Action, Action);
@@ -156,33 +166,42 @@ pub fn create_strategy(id: &str) -> Box<dyn Strategy> {
     }
 }
 
+// 找到 src-tauri/src/lib.rs 的 run_game 部分，用下面的代码完全替换该函数：
+
 #[tauri::command]
-fn run_game(p1_id: String, p2_id: String, rounds: u32) -> MatchResult {
+fn run_game(p1_id: String, p2_id: String, rounds: u32, noise: f64) -> MatchResult {
     let p1 = create_strategy(&p1_id);
     let p2 = create_strategy(&p2_id);
 
     let mut history: Vec<Round> = Vec::with_capacity(rounds as usize);
     let mut p1_score = 0;
     let mut p2_score = 0;
+    let mut rng = rand::rng();
 
     for _ in 0..rounds {
         // 1. P1 thinking based on current history
-        let a1 = p1.next_move(&history);
+        let mut a1 = p1.next_move(&history);
+
         // 2. P2 thinking based on history opponent changed to P1
-        // (Action::Cooperate, Action::Defect) -> (Action::Defect, Action::Cooperate)
         let history_for_p2: Vec<Round> = history
             .iter()
             .map(|(my, opp)| (*opp, *my))
             .collect();
-        let a2 = p2.next_move(&history_for_p2);
+        let mut a2 = p2.next_move(&history_for_p2);
+
+        // noise in [0, 1]
+        if rng.random_bool(noise) {
+            a1 = a1.toggle();
+        }
+        if rng.random_bool(noise) {
+            a2 = a2.toggle();
+        }
 
         // 3. record this round
         history.push((a1, a2));
 
         // 4. calculate scores
         let (s1, s2) = calculate_payoff(a1, a2);
-        p1_score += s1;
-        p2_score += s2;
         p1_score += s1;
         p2_score += s2;
     }
@@ -203,7 +222,7 @@ pub struct TournamentResult {
 }
 
 #[tauri::command]
-fn run_tournament(rounds: u32) -> TournamentResult {
+fn run_tournament(rounds: u32, noise: f64) -> TournamentResult {
     // 1. Define the IDs of all participants
     let all_ids = vec![
         "tit_for_tat",
@@ -230,15 +249,23 @@ fn run_tournament(rounds: u32) -> TournamentResult {
 
             let mut history = Vec::with_capacity(rounds as usize);
             let mut s1_sum = 0;
+            let mut rng = rand::rng();
 
             for _ in 0..rounds {
-                let a1 = p1.next_move(&history);
+                let mut a1 = p1.next_move(&history); // <--- mut
                 // Flip the view of P2
                 let history_for_p2: Vec<Round> = history
                     .iter()
                     .map(|(my, opp)| (*opp, *my))
                     .collect();
-                let a2 = p2.next_move(&history_for_p2);
+                let mut a2 = p2.next_move(&history_for_p2); // <--- mut
+
+                if rng.random_bool(noise) {
+                    a1 = a1.toggle();
+                }
+                if rng.random_bool(noise) {
+                    a2 = a2.toggle();
+                }
 
                 history.push((a1, a2));
 
@@ -247,7 +274,6 @@ fn run_tournament(rounds: u32) -> TournamentResult {
             }
 
             total_scores[i] += s1_sum;
-            // Because it's a double loop (0..N, 0..N), when the loop reaches j vs i, it will be calculated again, so only the score of the current main view i needs to sum up.
         }
     }
 

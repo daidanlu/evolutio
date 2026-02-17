@@ -150,6 +150,65 @@ impl Strategy for Pavlov {
     }
 }
 
+// --- Strategy G: Generous Tit-For-Tat ---
+// Logic: Basically the same as TFT, but there is a 10% probability of forgiveness (continued cooperation) when the opponent betrays.
+pub struct GenerousTFT;
+
+impl Strategy for GenerousTFT {
+    fn name(&self) -> String {
+        "Generous TFT".to_string()
+    }
+
+    fn next_move(&self, history: &[Round]) -> Action {
+        match history.last() {
+            None => Action::Cooperate, // round 1: cooperate
+            Some(&(_, opp_last)) => {
+                match opp_last {
+                    Action::Cooperate => Action::Cooperate,
+                    Action::Defect => {
+                        let mut rng = rand::rng();
+                        // 10% chance of forgiveness (Cooperate), 90% chance of revenge (Defect)
+                        if rng.random_bool(0.1) {
+                            Action::Cooperate
+                        } else {
+                            Action::Defect
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Strategy H: Joss ---
+// Logic: 90% like Tit for Tat, but with a 10% probability of suddenly betraying.
+pub struct Joss;
+
+impl Strategy for Joss {
+    fn name(&self) -> String {
+        "Joss".to_string()
+    }
+
+    fn next_move(&self, history: &[Round]) -> Action {
+        match history.last() {
+            None => Action::Cooperate,
+            Some(&(_, opp_last)) => {
+                if opp_last == Action::Defect {
+                    Action::Defect
+                } else {
+                    let mut rng = rand::rng();
+                    // If Joss's opponent cooperates, there's a 10% chance Joss will betray them (Sneaky Defect)
+                    if rng.random_bool(0.1) {
+                        Action::Defect
+                    } else {
+                        Action::Cooperate
+                    }
+                }
+            }
+        }
+    }
+}
+
 // 4. Strategy Factory (The Builder)
 // A helper function to create a Strategy object by name.
 // Returns Box<dyn Strategy> (Trait Object) to allow dynamic dispatch.
@@ -161,6 +220,8 @@ pub fn create_strategy(id: &str) -> Box<dyn Strategy> {
         "always_cooperate" => Box::new(AlwaysCooperate),
         "random" => Box::new(Random),
         "pavlov" => Box::new(Pavlov),
+        "generous_tft" => Box::new(GenerousTFT),
+        "joss" => Box::new(Joss),
         // Default to AlwaysDefect if unknown id
         _ => Box::new(AlwaysDefect),
     }
@@ -230,7 +291,9 @@ fn run_tournament(rounds: u32, noise: f64) -> TournamentResult {
         "grim_trigger",
         "always_cooperate",
         "random",
-        "pavlov"
+        "pavlov",
+        "generous_tft",
+        "joss"
     ];
 
     // 2. Initialize the scoreboard (index corresponds to all_ids)

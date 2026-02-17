@@ -12,4 +12,6 @@ export const STRATEGIES: StrategyMeta[] = [
   { id: "always_cooperate", name: "Always Cooperate", description: "The saint. Always cooperates.", color: "text-green-400" },
   { id: "random", name: "Random", description: "Unpredictable. Flips a coin every time.", color: "text-yellow-400" },
   { id: "pavlov", name: "Pavlov", description: "Win-Stay, Lose-Shift. Changes strategy only when it fails.", color: "text-orange-500" },
+  { id: "generous_tft", name: "Generous TFT", description: "Like TFT, but forgives mistakes with 10% probability to stop death spirals.", color: "text-pink-500" },
+  { id: "joss", name: "Joss", description: "Sneaky. Mostly TFT, but tries to defect 10% of the time to exploit you.", color: "text-red-400" },
 ];

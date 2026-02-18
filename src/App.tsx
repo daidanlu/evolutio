@@ -96,6 +96,42 @@ function App() {
     }
   };
 
+  const runEvolution = async () => {
+    setLogs(prev => [
+      ...prev,
+      "==================================",
+      "> STARTING EVOLUTIONARY CYCLE...",
+      "> Logic: Survival of the Fittest (Pop +/- 1 per Gen)",
+      `> Noise Level: ${(noise * 100).toFixed(0)}%`
+    ]);
+
+    try {
+      interface Generation {
+        gen_number: number;
+        populations: [string, number][];
+      }
+
+      const history = await invoke<Generation[]>("run_evolution", { rounds, noise });
+
+      // Animation effect: Print one generation every 200ms
+      history.forEach((gen, index) => {
+        setTimeout(() => {
+          // Formatted output: Only display living species
+          const alive = gen.populations
+            .filter((p) => p[1] > 0)
+            .map(p => `${p[0]}: ${p[1]}`)
+            .join(" | ");
+
+          setLogs(prev => [...prev, `Gen ${gen.gen_number}: ${alive}`]);
+        }, index * 200);
+      });
+
+    } catch (error) {
+      console.error(error);
+      setLogs(prev => [...prev, `[ERROR] Evolution Failed: ${error}`]);
+    }
+  };
+
   // Auto-scroll effect
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -147,6 +183,13 @@ function App() {
             noise={noise}
             setNoise={setNoise}
           />
+
+          <button
+            onClick={runEvolution}
+            className="mb-2 py-2 border border-purple-600 text-purple-400 font-bold rounded hover:bg-purple-900/30 transition-all"
+          >
+            START EVOLUTION
+          </button>
 
           <button
             onClick={runTournament}

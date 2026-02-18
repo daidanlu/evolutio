@@ -357,6 +357,135 @@ fn run_tournament(rounds: u32, noise: f64) -> TournamentResult {
     TournamentResult { ranking }
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct Generation {
+    pub gen_number: u32,
+    pub populations: Vec<(String, u32)>,
+}
+
+#[tauri::command]
+fn run_evolution(rounds: u32, noise: f64) -> Vec<Generation> {
+    // 1. Define the gene pool: List of all participating strategies.
+    let all_ids = vec![
+        "tit_for_tat",
+        "always_defect",
+        "grim_trigger",
+        "always_cooperate",
+        "random",
+        "pavlov",
+        "generous_tft",
+        "joss"
+    ];
+
+    // Initialize population: Start with 5 individuals for each strategy.
+    // Index matches all_ids. Total population = 8 * 5 = 40.
+    let mut population: Vec<u32> = vec![5; all_ids.len()];
+    let generations = 50; // Simulate for 50 generations (cycles).
+    let mut history = Vec::new();
+
+    let mut rng = rand::rng();
+
+    // --- MAIN EVOLUTION LOOP ---
+    for gen in 1..=generations {
+        // Record current population state for frontend visualization.
+        let current_pop_display: Vec<(String, u32)> = all_ids
+            .iter()
+            .zip(population.iter())
+            .map(|(id, &count)| (create_strategy(id).name(), count))
+            .collect();
+        history.push(Generation { gen_number: gen, populations: current_pop_display });
+
+        // Extinction Check: Filter out extinct strategies (count == 0).
+        let active_strategies: Vec<usize> = population
+            .iter()
+            .enumerate()
+            .filter(|(_, &count)| count > 0)
+            .map(|(i, _)| i)
+            .collect();
+
+        // Termination Condition: If only 1 (or 0) species remains, evolution stops early.
+        if active_strategies.len() <= 1 {
+            break;
+        }
+
+        // 2. Tournament Phase: Calculate fitness for each species.
+        let mut scores = vec![0; all_ids.len()];
+
+        // Loop through every pair of active strategies (i vs j).
+        for &i in &active_strategies {
+            for &j in &active_strategies {
+                // Instead of simulating 40x40 individual matches (slow), simulating 1 representative match between Strategy i and Strategy j. Then multiply the score by the number of opponents.
+
+                let p1 = create_strategy(all_ids[i]);
+                let p2 = create_strategy(all_ids[j]);
+
+                let mut p1_total = 0;
+
+                // Run a single representative match.
+                let mut history_vec = Vec::with_capacity(rounds as usize);
+                for _ in 0..rounds {
+                    let mut a1 = p1.next_move(&history_vec);
+                    // Flip perspective for Player 2
+                    let hist_p2: Vec<Round> = history_vec
+                        .iter()
+                        .map(|(m, o)| (*o, *m))
+                        .collect();
+                    let mut a2 = p2.next_move(&hist_p2);
+
+                    // Apply Noise (Trembling Hand)
+                    if rng.random_bool(noise) {
+                        a1 = a1.toggle();
+                    }
+                    if rng.random_bool(noise) {
+                        a2 = a2.toggle();
+                    }
+
+                    history_vec.push((a1, a2));
+                    let (s1, _) = calculate_payoff(a1, a2);
+                    p1_total += s1;
+                }
+
+                // Total Score += (Avg Score against j) * (Number of j opponents)
+                // If playing against self (i==j), opponent count is population - 1.
+                let opponent_count = if i == j { population[j] - 1 } else { population[j] };
+                if opponent_count > 0 {
+                    scores[i] += p1_total * (opponent_count as i32);
+                }
+            }
+        }
+
+        // 3. Selection Phase: Reproduction & Elimination.
+        let mut best_idx = 0;
+        let mut max_score = -1;
+        let mut worst_idx = 0;
+        let mut min_score = i32::MAX;
+
+        for &i in &active_strategies {
+            // Calculate Average Fitness per Individual to compare gene quality instead of total biomass.
+            let avg_score = scores[i] / (population[i] as i32);
+
+            if avg_score > max_score {
+                max_score = avg_score;
+                best_idx = i;
+            }
+            if avg_score < min_score {
+                min_score = avg_score;
+                worst_idx = i;
+            }
+        }
+
+        // Apply Natural Selection:
+        // The fittest strategy grows (+1).
+        // The weakest strategy shrinks (-1).
+        if best_idx != worst_idx {
+            population[best_idx] += 1;
+            population[worst_idx] -= 1;
+        }
+    }
+
+    history
+}
+
 // 5. Tauri Commands (The Bridge)
 #[tauri::command]
 fn greet_engine() -> String {
@@ -368,7 +497,9 @@ pub fn run() {
     tauri::Builder
         ::default()
         // register run_game
-        .invoke_handler(tauri::generate_handler![greet_engine, run_game, run_tournament])
+        .invoke_handler(
+            tauri::generate_handler![greet_engine, run_game, run_tournament, run_evolution]
+        )
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -377,9 +377,8 @@ fn run_evolution(rounds: u32, noise: f64) -> Vec<Generation> {
         "joss"
     ];
 
-    // Initialize population: Start with 5 individuals for each strategy.
-    // Index matches all_ids. Total population = 8 * 5 = 40.
-    let mut population: Vec<u32> = vec![5; all_ids.len()];
+    // population of TFT, AD, GT, AC, Rnd, Pav, GTFT, Joss
+    let mut population: Vec<u32> = vec![3, 5, 2, 20, 2, 2, 3, 3];
     let generations = 50; // Simulate for 50 generations (cycles).
     let mut history = Vec::new();
 
@@ -462,7 +461,7 @@ fn run_evolution(rounds: u32, noise: f64) -> Vec<Generation> {
 
         for &i in &active_strategies {
             // Calculate Average Fitness per Individual to compare gene quality instead of total biomass.
-            let avg_score = scores[i] / (population[i] as i32);
+            let avg_score = scores[i];
 
             if avg_score > max_score {
                 max_score = avg_score;

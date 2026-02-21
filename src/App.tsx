@@ -5,12 +5,14 @@ import { GameGrid } from "./GameGrid";
 import { StrategySelector } from "./StrategySelector";
 import { STRATEGIES } from "./strategies";
 import { SettingsPanel } from "./SettingsPanel";
+import { EvolutionChart } from "./EvolutionChart";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
   const [logs, setLogs] = useState<string[]>([]);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const [matchData, setMatchData] = useState<MatchResult | null>(null);
+  const [evolutionData, setEvolutionData] = useState<any[]>([]);
 
   // --- State for Strategy Selection ---
   const [p1Strategy, setP1Strategy] = useState(STRATEGIES[0].id);
@@ -113,6 +115,8 @@ function App() {
 
       const history = await invoke<Generation[]>("run_evolution", { rounds, noise });
 
+      setEvolutionData(history);
+
       // Animation effect: Print one generation every 200ms
       history.forEach((gen, index) => {
         setTimeout(() => {
@@ -207,19 +211,24 @@ function App() {
         </aside>
 
         {/* Right Side: Log Display */}
-        <main className="flex-1 bg-black border border-gray-700 rounded p-4 font-mono text-sm overflow-y-auto shadow-inner">
+        <main className="flex-1 bg-black border border-gray-700 rounded p-4 font-mono text-sm overflow-y-auto shadow-inner flex flex-col">
           <p className="text-gray-500">System ready...</p>
           <p className="text-gray-500">Waiting for input...</p>
 
           {matchData && <GameGrid rounds={matchData.rounds} />}
 
-          {logs.map((log, index) => (
-            <p key={index} className="mb-1">
-              <span className="text-green-400">{">"}</span> {log}
-            </p>
-          ))}
+          {evolutionData.length > 0 && (
+            <EvolutionChart data={evolutionData} />
+          )}
 
-          <div ref={logsEndRef} />
+          <div className="mt-4 flex-1 overflow-y-auto">
+            {logs.map((log, index) => (
+              <p key={index} className="mb-1">
+                <span className="text-green-400">{">"}</span> {log}
+              </p>
+            ))}
+            <div ref={logsEndRef} />
+          </div>
         </main>
       </div>
     </div>

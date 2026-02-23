@@ -22,6 +22,15 @@ function App() {
   const [rounds, setRounds] = useState(20); // rounds=20
   const [noise, setNoise] = useState(0);
 
+  // population of TFT, AD, GT, AC, Rnd, Pav, GTFT, Joss
+  const [initialPops, setInitialPops] = useState<number[]>([
+    5, 5, 5, 5, 5, 5, 5, 5 // default=5
+  ]);
+  const strategyNames = [
+    "Tit-For-Tat", "Always Defect", "Grim Trigger", "Always Cooperate",
+    "Random", "Pavlov", "Generous TFT", "Joss"
+  ];
+
   // --- Simulation Handler ---
   const runSimulation = async () => {
     // 1. UI Feedback
@@ -113,7 +122,11 @@ function App() {
         populations: [string, number][];
       }
 
-      const history = await invoke<Generation[]>("run_evolution", { rounds, noise });
+      const history = await invoke<Generation[]>("run_evolution", {
+        rounds: rounds,
+        noise: noise,
+        initialPopulations: initialPops
+      });
 
       setEvolutionData(history);
 
@@ -165,49 +178,75 @@ function App() {
       <div className="flex flex-1 gap-4 overflow-hidden">
 
         {/* Left Side: Controls */}
-        <aside className="w-64 border-r border-gray-700 pr-4 flex flex-col gap-4">
+        <aside className="w-64 border-r border-gray-700 pr-4 flex flex-col h-full">
 
-          <StrategySelector
-            label="Player 1 (The Hero)"
-            selectedId={p1Strategy}
-            onChange={setP1Strategy}
-          />
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4 pr-2 pb-4 style-scrollbar">
+            <StrategySelector
+              label="Player 1 (The Hero)"
+              selectedId={p1Strategy}
+              onChange={setP1Strategy}
+            />
 
-          <StrategySelector
-            label="Player 2 (The Rival)"
-            selectedId={p2Strategy}
-            onChange={setP2Strategy}
-          />
+            <StrategySelector
+              label="Player 2 (The Rival)"
+              selectedId={p2Strategy}
+              onChange={setP2Strategy}
+            />
 
-          <SettingsPanel
-            speed={speed}
-            setSpeed={setSpeed}
-            rounds={rounds}
-            setRounds={setRounds}
-            noise={noise}
-            setNoise={setNoise}
-          />
+            <SettingsPanel
+              speed={speed}
+              setSpeed={setSpeed}
+              rounds={rounds}
+              setRounds={setRounds}
+              noise={noise}
+              setNoise={setNoise}
+            />
 
-          <button
-            onClick={runEvolution}
-            className="mb-2 py-2 border border-purple-600 text-purple-400 font-bold rounded hover:bg-purple-900/30 transition-all"
-          >
-            START EVOLUTION
-          </button>
+            <div className="p-4 bg-gray-800 rounded border border-gray-700 flex flex-col gap-2 shrink-0">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ecosystem Setup</h3>
+              {strategyNames.map((name, index) => (
+                <div key={name} className="flex justify-between items-center text-xs">
+                  <span className="text-gray-300">{name}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={initialPops[index]}
+                    onChange={(e) => {
+                      const newPops = [...initialPops];
+                      newPops[index] = Number(e.target.value);
+                      setInitialPops(newPops);
+                    }}
+                    className="w-12 bg-gray-900 border border-gray-600 rounded text-center text-white focus:border-purple-500 outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
-          <button
-            onClick={runTournament}
-            className="mb-2 py-2 border border-yellow-600 text-yellow-500 font-bold rounded hover:bg-yellow-900/30 transition-all"
-          >
-            RUN TOURNAMENT
-          </button>
+          <div className="shrink-0 flex flex-col pt-4 border-t border-gray-700">
+            <button
+              onClick={runEvolution}
+              className="mb-2 py-2 border border-purple-600 text-purple-400 font-bold rounded hover:bg-purple-900/30 transition-all"
+            >
+              START EVOLUTION
+            </button>
 
-          <button
-            onClick={runSimulation}
-            className="mt-auto py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded shadow-lg transition-all active:scale-95"
-          >
-            START SIMULATION
-          </button>
+            <button
+              onClick={runTournament}
+              className="mb-2 py-2 border border-yellow-600 text-yellow-500 font-bold rounded hover:bg-yellow-900/30 transition-all"
+            >
+              RUN TOURNAMENT
+            </button>
+
+            <button
+              onClick={runSimulation}
+              className="py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded shadow-lg transition-all active:scale-95"
+            >
+              START SIMULATION
+            </button>
+          </div>
+
         </aside>
 
         {/* Right Side: Log Display */}

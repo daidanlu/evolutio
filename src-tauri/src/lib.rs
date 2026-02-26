@@ -364,7 +364,7 @@ pub struct Generation {
 }
 
 #[tauri::command]
-fn run_evolution(rounds: u32, noise: f64, initial_populations: Vec<u32>) -> Vec<Generation> {
+fn run_evolution(rounds: u32, noise: f64, initial_populations: Vec<u32>, generations: u32) -> Vec<Generation> {
     // 1. Define the gene pool: List of all participating strategies.
     let all_ids = vec![
         "tit_for_tat",
@@ -383,7 +383,7 @@ fn run_evolution(rounds: u32, noise: f64, initial_populations: Vec<u32>) -> Vec<
     } else {
         vec![5; all_ids.len()] // default=5
     };
-    let generations = 50; // Simulate for 50 generations (cycles).
+    
     let mut history = Vec::new();
 
     let mut rng = rand::rng();

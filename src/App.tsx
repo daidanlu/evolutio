@@ -20,16 +20,27 @@ function App() {
 
   const [speed, setSpeed] = useState(100); // delay=100ms
   const [rounds, setRounds] = useState(20); // rounds=20
+  const [generations, setGenerations] = useState(50); // generations=50
   const [noise, setNoise] = useState(0);
 
   // population of TFT, AD, GT, AC, Rnd, Pav, GTFT, Joss
   const [initialPops, setInitialPops] = useState<number[]>([
     5, 5, 5, 5, 5, 5, 5, 5 // default=5
   ]);
+  const activeTimeouts = useRef<number[]>([]);
   const strategyNames = [
     "Tit-For-Tat", "Always Defect", "Grim Trigger", "Always Cooperate",
     "Random", "Pavlov", "Generous TFT", "Joss"
   ];
+
+  const clearSandbox = () => {
+    activeTimeouts.current.forEach(clearTimeout);
+    activeTimeouts.current = [];
+
+    setLogs(["> Sandbox environment reset. Waiting for new parameters..."]);
+    setMatchData(null);
+    setEvolutionData([]);
+  };
 
   // --- Simulation Handler ---
   const runSimulation = async () => {
@@ -108,6 +119,10 @@ function App() {
   };
 
   const runEvolution = async () => {
+    activeTimeouts.current.forEach(clearTimeout);
+    activeTimeouts.current = [];
+    setEvolutionData([]);
+
     setLogs(prev => [
       ...prev,
       "==================================",
@@ -125,22 +140,23 @@ function App() {
       const history = await invoke<Generation[]>("run_evolution", {
         rounds: rounds,
         noise: noise,
-        initialPopulations: initialPops
+        initialPopulations: initialPops,
+        generations: generations
       });
 
-      setEvolutionData(history);
-
-      // Animation effect: Print one generation every 200ms
       history.forEach((gen, index) => {
-        setTimeout(() => {
-          // Formatted output: Only display living species
+        const timerId = window.setTimeout(() => {
+
           const alive = gen.populations
             .filter((p) => p[1] > 0)
             .map(p => `${p[0]}: ${p[1]}`)
             .join(" | ");
-
           setLogs(prev => [...prev, `Gen ${gen.gen_number}: ${alive}`]);
+          setEvolutionData(prev => [...prev, gen]);
+
         }, index * 200);
+
+        activeTimeouts.current.push(timerId);
       });
 
     } catch (error) {
@@ -200,6 +216,8 @@ function App() {
               setRounds={setRounds}
               noise={noise}
               setNoise={setNoise}
+              generations={generations}
+              setGenerations={setGenerations}
             />
 
             <div className="p-4 bg-gray-800 rounded border border-gray-700 flex flex-col gap-2 shrink-0">
@@ -225,6 +243,12 @@ function App() {
           </div>
 
           <div className="shrink-0 flex flex-col pt-4 border-t border-gray-700">
+            <button
+              onClick={clearSandbox}
+              className="mb-4 py-1 border border-gray-500 text-gray-400 text-sm rounded hover:bg-gray-800 transition-all"
+            >
+              CLEAR SANDBOX
+            </button>
             <button
               onClick={runEvolution}
               className="mb-2 py-2 border border-purple-600 text-purple-400 font-bold rounded hover:bg-purple-900/30 transition-all"

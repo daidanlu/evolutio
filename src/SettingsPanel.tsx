@@ -5,9 +5,11 @@ interface Props {
     setRounds: (v: number) => void;
     noise: number;
     setNoise: (v: number) => void;
+    generations: number;
+    setGenerations: (val: number) => void;
 }
 
-export function SettingsPanel({ speed, setSpeed, rounds, setRounds, noise, setNoise }: Props) {
+export function SettingsPanel({ speed, setSpeed, rounds, setRounds, noise, setNoise, generations, setGenerations }: Props) {
     return (
         <div className="p-4 bg-gray-800 rounded border border-gray-700 flex flex-col gap-4">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Simulation Parameters</h3>
@@ -43,6 +45,22 @@ export function SettingsPanel({ speed, setSpeed, rounds, setRounds, noise, setNo
                     value={rounds}
                     onChange={(e) => setRounds(Number(e.target.value))}
                     className="w-full bg-gray-900 border border-gray-600 rounded p-1 text-xs text-center text-white focus:border-green-500 outline-none"
+                />
+            </div>
+
+            <div className="flex flex-col gap-1 mt-2">
+                <div className="flex justify-between text-xs text-gray-300">
+                    <span>Generations (Evolution)</span>
+                    <span className="font-mono text-purple-400">{generations}</span>
+                </div>
+                <input
+                    type="range"
+                    min="10"
+                    max="200"
+                    step="10"
+                    value={generations}
+                    onChange={(e) => setGenerations(Number(e.target.value))}
+                    className="w-full accent-purple-500 cursor-pointer"
                 />
             </div>
 

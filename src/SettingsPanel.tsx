@@ -51,22 +51,46 @@ export function SettingsPanel({
 
             <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-gray-700">
                 <h3 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Payoff Matrix Law</h3>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div className="flex justify-between items-center bg-gray-900 p-1 rounded border border-gray-600">
-                        <span className="text-gray-400 pl-1" title="Temptation">T (Defect/Coop)</span>
-                        <input type="number" value={payoff.t} onChange={e => setPayoff({ ...payoff, t: Number(e.target.value) })} className="w-10 bg-transparent text-white font-mono text-center outline-none focus:text-blue-400" />
-                    </div>
-                    <div className="flex justify-between items-center bg-gray-900 p-1 rounded border border-gray-600">
-                        <span className="text-gray-400 pl-1" title="Reward">R (Coop/Coop)</span>
-                        <input type="number" value={payoff.r} onChange={e => setPayoff({ ...payoff, r: Number(e.target.value) })} className="w-10 bg-transparent text-white font-mono text-center outline-none focus:text-blue-400" />
-                    </div>
-                    <div className="flex justify-between items-center bg-gray-900 p-1 rounded border border-gray-600">
-                        <span className="text-gray-400 pl-1" title="Punishment">P (Defect/Defect)</span>
-                        <input type="number" value={payoff.p} onChange={e => setPayoff({ ...payoff, p: Number(e.target.value) })} className="w-10 bg-transparent text-white font-mono text-center outline-none focus:text-blue-400" />
-                    </div>
-                    <div className="flex justify-between items-center bg-gray-900 p-1 rounded border border-gray-600">
-                        <span className="text-gray-400 pl-1" title="Sucker">S (Coop/Defect)</span>
-                        <input type="number" value={payoff.s} onChange={e => setPayoff({ ...payoff, s: Number(e.target.value) })} className="w-10 bg-transparent text-white font-mono text-center outline-none focus:text-blue-400" />
+                <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-gray-700">
+                    <h3 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Payoff Matrix</h3>
+                    <div className="grid grid-cols-2 gap-2">
+
+                        {/* T: Temptation */}
+                        <div className="flex flex-col bg-gray-900 p-2 rounded border border-gray-600">
+                            <div className="flex justify-between items-center w-full mb-1">
+                                <span className="font-bold text-red-400" title="Temptation">T</span>
+                                <input type="number" value={payoff.t} onChange={e => setPayoff({ ...payoff, t: Number(e.target.value) })} className="w-10 bg-black border border-gray-700 rounded text-white font-mono text-center outline-none focus:border-blue-500 focus:text-blue-400 transition-all" />
+                            </div>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-tighter">Defect/Coop</span>
+                        </div>
+
+                        {/* R: Reward */}
+                        <div className="flex flex-col bg-gray-900 p-2 rounded border border-gray-600">
+                            <div className="flex justify-between items-center w-full mb-1">
+                                <span className="font-bold text-green-400" title="Reward">R</span>
+                                <input type="number" value={payoff.r} onChange={e => setPayoff({ ...payoff, r: Number(e.target.value) })} className="w-10 bg-black border border-gray-700 rounded text-white font-mono text-center outline-none focus:border-blue-500 focus:text-blue-400 transition-all" />
+                            </div>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-tighter">Coop/Coop</span>
+                        </div>
+
+                        {/* P: Punishment */}
+                        <div className="flex flex-col bg-gray-900 p-2 rounded border border-gray-600">
+                            <div className="flex justify-between items-center w-full mb-1">
+                                <span className="font-bold text-gray-400" title="Punishment">P</span>
+                                <input type="number" value={payoff.p} onChange={e => setPayoff({ ...payoff, p: Number(e.target.value) })} className="w-10 bg-black border border-gray-700 rounded text-white font-mono text-center outline-none focus:border-blue-500 focus:text-blue-400 transition-all" />
+                            </div>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-tighter">Defect/Defect</span>
+                        </div>
+
+                        {/* S: Sucker */}
+                        <div className="flex flex-col bg-gray-900 p-2 rounded border border-gray-600">
+                            <div className="flex justify-between items-center w-full mb-1">
+                                <span className="font-bold text-yellow-500" title="Sucker">S</span>
+                                <input type="number" value={payoff.s} onChange={e => setPayoff({ ...payoff, s: Number(e.target.value) })} className="w-10 bg-black border border-gray-700 rounded text-white font-mono text-center outline-none focus:border-blue-500 focus:text-blue-400 transition-all" />
+                            </div>
+                            <span className="text-[9px] text-gray-500 uppercase tracking-tighter">Coop/Defect</span>
+                        </div>
+
                     </div>
                 </div>
             </div>

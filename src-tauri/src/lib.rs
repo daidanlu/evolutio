@@ -131,7 +131,7 @@ impl Strategy for Joss {
         match history.last() {
             None => Action::Cooperate,
             Some(&(_, opp_last)) => {
-                if *opp_last == Action::Defect {
+                if opp_last == Action::Defect {
                     Action::Defect
                 } else {
                     if rand::rng().random_bool(0.1) { Action::Defect } else { Action::Cooperate }

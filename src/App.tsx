@@ -22,6 +22,7 @@ function App() {
   const [rounds, setRounds] = useState(20); // rounds=20
   const [generations, setGenerations] = useState(50); // generations=50
   const [noise, setNoise] = useState(0);
+  const [payoff, setPayoff] = useState({ t: 5, r: 3, p: 1, s: 0 });
 
   // population of TFT, AD, GT, AC, Rnd, Pav, GTFT, Joss
   const [initialPops, setInitialPops] = useState<number[]>([
@@ -60,7 +61,8 @@ function App() {
         p1Id: p1Strategy,
         p2Id: p2Strategy,
         rounds: rounds,
-        noise: noise
+        noise: noise,
+        payoffMatrix: payoff
       });
 
       // 3. Process the result
@@ -100,7 +102,10 @@ function App() {
         ranking: [string, number][]; // Tuple array
       }
 
-      const result = await invoke<TournamentResult>("run_tournament", { rounds, noise });
+      const result = await invoke<TournamentResult>("run_tournament", {
+        rounds, noise,
+        payoffMatrix: payoff
+      });
 
       const rankLogs = result.ranking.map((entry, index) =>
         `#${index + 1} ${entry[0].padEnd(18)}: ${entry[1]} pts`
@@ -141,7 +146,8 @@ function App() {
         rounds: rounds,
         noise: noise,
         initialPopulations: initialPops,
-        generations: generations
+        generations: generations,
+        payoffMatrix: payoff
       });
 
       history.forEach((gen, index) => {
@@ -218,6 +224,7 @@ function App() {
               setNoise={setNoise}
               generations={generations}
               setGenerations={setGenerations}
+              payoff={payoff} setPayoff={setPayoff}
             />
 
             <div className="p-4 bg-gray-800 rounded border border-gray-700 flex flex-col gap-2 shrink-0">

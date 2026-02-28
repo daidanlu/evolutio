@@ -6,6 +6,7 @@ import { StrategySelector } from "./StrategySelector";
 import { STRATEGIES } from "./strategies";
 import { SettingsPanel } from "./SettingsPanel";
 import { EvolutionChart } from "./EvolutionChart";
+import { TournamentChart } from "./TournamentChart";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -13,6 +14,7 @@ function App() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const [matchData, setMatchData] = useState<MatchResult | null>(null);
   const [evolutionData, setEvolutionData] = useState<any[]>([]);
+  const [tournamentData, setTournamentData] = useState<{ name: string, score: number }[]>([]);
 
   // --- State for Strategy Selection ---
   const [p1Strategy, setP1Strategy] = useState(STRATEGIES[0].id);
@@ -41,10 +43,14 @@ function App() {
     setLogs(["> Sandbox environment reset. Waiting for new parameters..."]);
     setMatchData(null);
     setEvolutionData([]);
+    setTournamentData([]);
   };
 
   // --- Simulation Handler ---
   const runSimulation = async () => {
+    setEvolutionData([]);
+    setTournamentData([]);
+
     // 1. UI Feedback
     setLogs(prev => [
       ...prev,
@@ -90,6 +96,10 @@ function App() {
 
 
   const runTournament = async () => {
+    setMatchData(null);
+    setEvolutionData([]);
+    setTournamentData([]);
+
     setLogs(prev => [
       ...prev,
       "==================================",
@@ -117,6 +127,12 @@ function App() {
         "=================================="
       ]);
 
+      const chartData = result.ranking.map(entry => ({
+        name: entry[0],
+        score: entry[1]
+      }));
+      setTournamentData(chartData);
+
     } catch (error) {
       console.error(error);
       setLogs(prev => [...prev, `[ERROR] Tournament Failed: ${error}`]);
@@ -126,6 +142,10 @@ function App() {
   const runEvolution = async () => {
     activeTimeouts.current.forEach(clearTimeout);
     activeTimeouts.current = [];
+
+    setMatchData(null);
+    setTournamentData([]);
+
     setEvolutionData([]);
 
     setLogs(prev => [
@@ -289,6 +309,10 @@ function App() {
 
           {evolutionData.length > 0 && (
             <EvolutionChart data={evolutionData} />
+          )}
+
+          {tournamentData.length > 0 && (
+            <TournamentChart data={tournamentData} />
           )}
 
           <div className="mt-4 flex-1 overflow-y-auto">

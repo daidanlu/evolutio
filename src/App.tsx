@@ -46,6 +46,31 @@ function App() {
     setTournamentData([]);
   };
 
+
+  const handleExportCSV = () => {
+    if (evolutionData.length > 0) {
+      const formattedData = evolutionData.map(gen => {
+        const row: any = { Generation: gen.gen_number };
+        gen.populations.forEach((p: [string, number]) => {
+          row[p[0]] = p[1];
+        });
+        return row;
+      });
+      exportToCSV("evolutio_evolution_data.csv", formattedData);
+      setLogs(prev => [...prev, "> SUCCESS: Evolution data exported to CSV."]);
+    }
+
+    else if (tournamentData.length > 0) {
+      const formattedData = tournamentData.map((t, i) => ({
+        Rank: i + 1,
+        Strategy: t.name,
+        Score: t.score
+      }));
+      exportToCSV("evolutio_tournament_data.csv", formattedData);
+      setLogs(prev => [...prev, "> SUCCESS: Tournament rankings exported to CSV."]);
+    }
+  };
+
   // --- Simulation Handler ---
   const runSimulation = async () => {
     setEvolutionData([]);
@@ -305,6 +330,17 @@ function App() {
           <p className="text-gray-500">System ready...</p>
           <p className="text-gray-500">Waiting for input...</p>
 
+          {(evolutionData.length > 0 || tournamentData.length > 0) && (
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={handleExportCSV}
+                className="text-[10px] font-bold text-blue-400 border border-blue-800 bg-blue-900/20 px-3 py-1 rounded hover:bg-blue-800 hover:text-white transition-all shadow-lg"
+              >
+                [↓] EXPORT TO CSV
+              </button>
+            </div>
+          )}
+
           {matchData && <GameGrid rounds={matchData.rounds} />}
 
           {evolutionData.length > 0 && (
@@ -328,5 +364,36 @@ function App() {
     </div>
   );
 }
+
+
+const exportToCSV = (filename: string, rows: object[]) => {
+  if (!rows || !rows.length) return;
+  const separator = ',';
+  const keys = Object.keys(rows[0]);
+
+  const csvContent =
+    keys.join(separator) +
+    '\n' +
+    rows.map(row => {
+      return keys.map(k => {
+        let cell = row[k as keyof typeof row] === null || row[k as keyof typeof row] === undefined ? '' : row[k as keyof typeof row];
+        cell = cell.toString().replace(/"/g, '""');
+        if (cell.search(/("|,|\n)/g) >= 0) cell = `"${cell}"`;
+        return cell;
+      }).join(separator);
+    }).join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+};
 
 export default App;

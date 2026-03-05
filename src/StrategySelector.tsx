@@ -1,4 +1,5 @@
 import { STRATEGIES } from "./strategies";
+import { Tooltip } from "./Tooltip";
 
 interface Props {
     label: string;
@@ -11,7 +12,18 @@ export function StrategySelector({ label, selectedId, onChange }: Props) {
 
     return (
         <div className="p-3 bg-gray-800 rounded border border-gray-600 transition-all hover:border-green-500 group relative">
-            <h3 className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">{label}</h3>
+
+
+            <div className="flex justify-between items-center mb-1">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</h3>
+                <div className="relative z-20">
+                    <Tooltip text={current.description} align="right">
+                        <span className="text-gray-500 hover:text-green-400 transition-colors text-xs font-bold px-1 bg-gray-900 border border-gray-700 rounded cursor-help">
+                            ?
+                        </span>
+                    </Tooltip>
+                </div>
+            </div>
 
             {/* Dropdown selection logic */}
             <select
@@ -35,7 +47,7 @@ export function StrategySelector({ label, selectedId, onChange }: Props) {
             </div>
 
             {/* Dropdown arrow indicator */}
-            <div className="absolute top-3 right-3 text-gray-600 group-hover:text-green-500">
+            <div className="absolute top-3 right-3 text-gray-600 group-hover:text-green-500 z-0">
                 ▼
             </div>
         </div>

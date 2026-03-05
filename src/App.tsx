@@ -7,6 +7,7 @@ import { STRATEGIES } from "./strategies";
 import { SettingsPanel } from "./SettingsPanel";
 import { EvolutionChart } from "./EvolutionChart";
 import { TournamentChart } from "./TournamentChart";
+import { Tooltip } from "./Tooltip";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -31,10 +32,6 @@ function App() {
     5, 5, 5, 5, 5, 5, 5, 5 // default=5
   ]);
   const activeTimeouts = useRef<number[]>([]);
-  const strategyNames = [
-    "Tit-For-Tat", "Always Defect", "Grim Trigger", "Always Cooperate",
-    "Random", "Pavlov", "Generous TFT", "Joss"
-  ];
 
   const clearSandbox = () => {
     activeTimeouts.current.forEach(clearTimeout);
@@ -274,9 +271,13 @@ function App() {
 
             <div className="p-4 bg-gray-800 rounded border border-gray-700 flex flex-col gap-2 shrink-0">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ecosystem Setup</h3>
-              {strategyNames.map((name, index) => (
-                <div key={name} className="flex justify-between items-center text-xs">
-                  <span className="text-gray-300">{name}</span>
+              {STRATEGIES.map((strategy, index) => (
+                <div key={strategy.id} className="flex justify-between items-center text-xs">
+                  <Tooltip text={strategy.description}>
+                    <span className={`border-b border-dashed border-gray-600 transition-colors pb-[1px] cursor-help ${strategy.color}`}>
+                      {strategy.name}
+                    </span>
+                  </Tooltip>
                   <input
                     type="number"
                     min="0"

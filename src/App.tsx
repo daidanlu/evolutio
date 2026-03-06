@@ -8,6 +8,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { EvolutionChart } from "./EvolutionChart";
 import { TournamentChart } from "./TournamentChart";
 import { Tooltip } from "./Tooltip";
+import { TerminalLine } from "./TerminalLine";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -354,9 +355,7 @@ function App() {
 
           <div className="mt-4 flex-1 overflow-y-auto">
             {logs.map((log, index) => (
-              <p key={index} className="mb-1">
-                <span className="text-green-400">{">"}</span> {log}
-              </p>
+              <TerminalLine key={index} text={log} />
             ))}
             <div ref={logsEndRef} />
           </div>

@@ -9,6 +9,7 @@ import { EvolutionChart } from "./EvolutionChart";
 import { TournamentChart } from "./TournamentChart";
 import { Tooltip } from "./Tooltip";
 import { TerminalLine } from "./TerminalLine";
+import { DominanceChart } from "./DominanceChart";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -345,9 +346,25 @@ function App() {
 
           {matchData && <GameGrid rounds={matchData.rounds} />}
 
-          {evolutionData.length > 0 && (
-            <EvolutionChart data={evolutionData} />
-          )}
+
+          {evolutionData.length > 0 && (() => {
+            const latestGen = evolutionData[evolutionData.length - 1];
+            const pieData = latestGen.populations.map((p: [string, number]) => ({
+              name: p[0],
+              value: p[1]
+            }));
+
+            return (
+              <div className="flex gap-4 items-start">
+                <div className="w-2/3">
+                  <EvolutionChart data={evolutionData} />
+                </div>
+                <div className="w-1/3">
+                  <DominanceChart data={pieData} generation={latestGen.gen_number} />
+                </div>
+              </div>
+            );
+          })()}
 
           {tournamentData.length > 0 && (
             <TournamentChart data={tournamentData} />

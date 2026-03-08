@@ -10,6 +10,7 @@ import { TournamentChart } from "./TournamentChart";
 import { Tooltip } from "./Tooltip";
 import { TerminalLine } from "./TerminalLine";
 import { DominanceChart } from "./DominanceChart";
+import { useStickyState } from "./useStickyState";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -23,16 +24,16 @@ function App() {
   const [p1Strategy, setP1Strategy] = useState(STRATEGIES[0].id);
   const [p2Strategy, setP2Strategy] = useState(STRATEGIES[1].id);
 
-  const [speed, setSpeed] = useState(100); // delay=100ms
-  const [rounds, setRounds] = useState(20); // rounds=20
-  const [generations, setGenerations] = useState(50); // generations=50
-  const [noise, setNoise] = useState(0);
-  const [payoff, setPayoff] = useState({ t: 5, r: 3, p: 1, s: 0 });
+  const [speed, setSpeed] = useStickyState(100, "evolutio-speed");
+  const [rounds, setRounds] = useStickyState(20, "evolutio-rounds");
+  const [generations, setGenerations] = useStickyState(50, "evolutio-generations");
+  const [noise, setNoise] = useStickyState(0, "evolutio-noise");
+  const [payoff, setPayoff] = useStickyState({ t: 5, r: 3, p: 1, s: 0 }, "evolutio-payoff");
 
-  // population of TFT, AD, GT, AC, Rnd, Pav, GTFT, Joss
-  const [initialPops, setInitialPops] = useState<number[]>([
-    5, 5, 5, 5, 5, 5, 5, 5 // default=5
-  ]);
+  const [initialPops, setInitialPops] = useStickyState<number[]>([
+    5, 5, 5, 5, 5, 5, 5, 5
+  ], "evolutio-initial-pops");
+
   const activeTimeouts = useRef<number[]>([]);
 
   const clearSandbox = () => {

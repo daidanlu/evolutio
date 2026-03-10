@@ -1,6 +1,8 @@
 use serde::{ Deserialize, Serialize };
 use rand::prelude::*;
 
+pub mod spatial;
+
 // --- 1. Basic Data Structures ---
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Action {

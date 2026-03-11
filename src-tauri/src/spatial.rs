@@ -46,11 +46,74 @@ impl<T: Clone> SpatialGrid<T> {
 
         neighbors
     }
+
+    /// play_match is a closure that takes the policies of two agents and returns the score of the first agent.
+    pub fn next_generation<F>(&mut self, play_match: F) where F: Fn(&T, &T) -> f32 {
+        let total_cells = self.width * self.height;
+
+        // phase 1: local tournament
+        let mut scores = vec![0.0; total_cells];
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let idx = self.get_index(x, y);
+                let my_strategy = &self.cells[idx];
+                let neighbors_indices = self.get_moore_neighbors_indices(x, y);
+
+                let mut my_total_score = 0.0;
+
+                for &n_idx in &neighbors_indices {
+                    let neighbor_strategy = &self.cells[n_idx];
+                    my_total_score += play_match(my_strategy, neighbor_strategy);
+                }
+
+                scores[idx] = my_total_score;
+            }
+        }
+
+        // phase 2: Darwinian local imitation
+        // Create a snapshot of the current universe. All reads are performed in the old universe (self.cells and scores), and all writes are performed in the new universe (next_gen_cells) to eliminate race conditions.
+        let mut next_gen_cells = self.cells.clone();
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let idx = self.get_index(x, y);
+                let neighbors_indices = self.get_moore_neighbors_indices(x, y);
+
+                // suppose current idx is the best strategy
+                let mut best_score = scores[idx];
+                let mut best_strategy = self.cells[idx].clone();
+
+                for &n_idx in &neighbors_indices {
+                    let neighbor_score = scores[n_idx];
+
+                    // find a better strategy in my neighbors
+                    if neighbor_score > best_score {
+                        best_score = neighbor_score;
+                        // replace my strategy to the best neighbor's
+                        best_strategy = self.cells[n_idx].clone();
+                    }
+                }
+
+                next_gen_cells[idx] = best_strategy;
+            }
+        }
+
+        // phase 3: state commit
+        // Use new state to replace old state
+        self.cells = next_gen_cells;
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Clone, PartialEq, Debug)]
+    enum Strategy {
+        Cooperate,
+        Defect,
+    }
 
     #[test]
     fn test_toroidal_boundary_conditions() {
@@ -72,5 +135,36 @@ mod tests {
             neighbors.contains(&top_neighbor_index),
             "Math Engine Error: Top neighbor of (0,0) did not wrap around to the bottom edge (0,9)!"
         );
+    }
+
+    #[test]
+    fn test_evolution_defector_invasion() {
+        // default: all cooperators in 3*3 grid
+        let mut grid = SpatialGrid::new(3, 3, Strategy::Cooperate);
+
+        // place a defector at (1, 1), y * width + x = 1 * 3 + 1 = 4
+        grid.cells[4] = Strategy::Defect;
+
+        // Define the payoff matrix closure of the classic Prisoner's Dilemma.
+        let play_match = |p1: &Strategy, p2: &Strategy| -> f32 {
+            match (p1, p2) {
+                (Strategy::Cooperate, Strategy::Cooperate) => 3.0,
+                (Strategy::Cooperate, Strategy::Defect) => 0.0,
+                (Strategy::Defect, Strategy::Cooperate) => 5.0,
+                (Strategy::Defect, Strategy::Defect) => 1.0,
+            }
+        };
+
+        // In a 3x3 circular grid, the defector in the middle plays against the 8 cooperators, scoring: 8 * 5 = 40 points. The other cooperators play against each other 7 times and against the defector once, scoring: 7 * 3 + 1 * 0 = 21 points. Because 40 > 21, all cooperators will imitate the richest neighbor (the defector) in the next generation.
+        grid.next_generation(play_match);
+
+        for (i, cell) in grid.cells.iter().enumerate() {
+            assert_eq!(
+                *cell,
+                Strategy::Defect,
+                "Grid cell at index {} did not imitate the Defector!",
+                i
+            );
+        }
     }
 }

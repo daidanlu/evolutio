@@ -103,6 +103,24 @@ impl<T: Clone> SpatialGrid<T> {
         // Use new state to replace old state
         self.cells = next_gen_cells;
     }
+
+    // random initialization
+    pub fn new_random<G>(width: usize, height: usize, mut generator: G) -> Self
+        where G: FnMut() -> T
+    {
+        let total_cells = width * height;
+        let mut cells = Vec::with_capacity(total_cells);
+
+        for _ in 0..total_cells {
+            cells.push(generator());
+        }
+
+        Self {
+            width,
+            height,
+            cells,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -166,5 +184,28 @@ mod tests {
                 i
             );
         }
+    }
+
+    #[test]
+    fn test_random_initialization() {
+        let grid = SpatialGrid::new_random(10, 10, || {
+            if rand::random::<bool>() { Strategy::Cooperate } else { Strategy::Defect }
+        });
+
+        assert_eq!(grid.width, 10);
+        assert_eq!(grid.height, 10);
+        assert_eq!(grid.cells.len(), 100);
+
+        let cooperators = grid.cells
+            .iter()
+            .filter(|&s| *s == Strategy::Cooperate)
+            .count();
+        let defectors = grid.cells
+            .iter()
+            .filter(|&s| *s == Strategy::Defect)
+            .count();
+
+        println!("Random world generated: {} Cooperators, {} Defectors", cooperators, defectors);
+        assert_eq!(cooperators + defectors, 100);
     }
 }

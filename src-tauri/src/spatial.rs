@@ -1,3 +1,19 @@
+#[derive(Clone, PartialEq, Debug)]
+pub enum Strategy {
+    Cooperate,
+    Defect,
+}
+
+impl Strategy {
+    #[inline]
+    pub fn as_u8(&self) -> u8 {
+        match self {
+            Strategy::Cooperate => 1,
+            Strategy::Defect => 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SpatialGrid<T> {
     pub width: usize,
@@ -123,15 +139,18 @@ impl<T: Clone> SpatialGrid<T> {
     }
 }
 
+impl SpatialGrid<Strategy> {
+    pub fn to_byte_array(&self) -> Vec<u8> {
+        self.cells
+            .iter()
+            .map(|strategy| strategy.as_u8())
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[derive(Clone, PartialEq, Debug)]
-    enum Strategy {
-        Cooperate,
-        Defect,
-    }
 
     #[test]
     fn test_toroidal_boundary_conditions() {

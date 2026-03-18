@@ -11,6 +11,7 @@ import { Tooltip } from "./Tooltip";
 import { TerminalLine } from "./TerminalLine";
 import { DominanceChart } from "./DominanceChart";
 import { useStickyState } from "./useStickyState";
+import { SpatialCanvas } from "./SpatialCanvas";
 
 function App() {
   const [status, setStatus] = useState("Initializing...");
@@ -23,7 +24,7 @@ function App() {
   // --- State for Strategy Selection ---
   const [p1Strategy, setP1Strategy] = useState(STRATEGIES[0].id);
   const [p2Strategy, setP2Strategy] = useState(STRATEGIES[1].id);
-
+  const [spatialTrigger, setSpatialTrigger] = useState(0);
   const [speed, setSpeed] = useStickyState(100, "evolutio-speed");
   const [rounds, setRounds] = useStickyState(20, "evolutio-rounds");
   const [generations, setGenerations] = useStickyState(50, "evolutio-generations");
@@ -305,6 +306,14 @@ function App() {
             >
               CLEAR SANDBOX
             </button>
+
+            <button
+              onClick={() => setSpatialTrigger(prev => prev + 1)}
+              className="mb-2 py-2 border border-blue-600 text-blue-400 font-bold rounded hover:bg-blue-900/30 transition-all"
+            >
+              INIT SPATIAL GRID
+            </button>
+
             <button
               onClick={runEvolution}
               className="mb-2 py-2 border border-purple-600 text-purple-400 font-bold rounded hover:bg-purple-900/30 transition-all"
@@ -344,6 +353,10 @@ function App() {
               </button>
             </div>
           )}
+
+          <div className="flex justify-center my-6 shrink-0">
+            <SpatialCanvas width={100} height={100} trigger={spatialTrigger} />
+          </div>
 
           {matchData && <GameGrid rounds={matchData.rounds} />}
 

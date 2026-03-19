@@ -1,8 +1,13 @@
+use std::sync::Mutex;
 use serde::{ Deserialize, Serialize };
 use rand::prelude::*;
 
 pub mod spatial;
 use spatial::{ SpatialGrid, Strategy as SpatialStrategy };
+
+pub struct GameState {
+    pub spatial_grid: Mutex<SpatialGrid<SpatialStrategy>>,
+}
 
 // --- 1. Basic Data Structures ---
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -408,12 +413,49 @@ fn run_evolution(
 }
 
 #[tauri::command]
-fn init_spatial_grid(width: usize, height: usize) -> Vec<u8> {
-    let grid = SpatialGrid::new_random(width, height, || {
+fn init_spatial_grid(
+    width: usize,
+    height: usize,
+    state: tauri::State<'_, GameState> // 获取 Tauri 注入的全局状态
+) -> Vec<u8> {
+    let new_grid = SpatialGrid::new_random(width, height, || {
         if rand::random::<bool>() { SpatialStrategy::Cooperate } else { SpatialStrategy::Defect }
     });
 
-    grid.to_byte_array()
+    let bytes = new_grid.to_byte_array();
+
+    // 加锁，并将新生成的宇宙覆盖写入全局内存
+    let mut grid_lock = state.spatial_grid.lock().unwrap();
+    *grid_lock = new_grid;
+
+    bytes
+}
+
+#[tauri::command]
+fn step_spatial_grid(
+    payoff_matrix: PayoffMatrix,
+    state: tauri::State<'_, GameState>
+) -> Result<Vec<u8>, String> {
+    // Attempt to acquire the lock, return an error if unsuccessful.
+    let mut grid = state.spatial_grid.lock().map_err(|e| e.to_string())?;
+
+    if grid.width == 0 {
+        return Err("Grid not initialized. Please click INIT SPATIAL GRID first.".to_string());
+    }
+
+    // Convert the T/R/P/S received from the frontend into closure functions.
+    let play_match = |p1: &SpatialStrategy, p2: &SpatialStrategy| -> f32 {
+        match (p1, p2) {
+            (SpatialStrategy::Cooperate, SpatialStrategy::Cooperate) => payoff_matrix.r as f32,
+            (SpatialStrategy::Cooperate, SpatialStrategy::Defect) => payoff_matrix.s as f32,
+            (SpatialStrategy::Defect, SpatialStrategy::Cooperate) => payoff_matrix.t as f32,
+            (SpatialStrategy::Defect, SpatialStrategy::Defect) => payoff_matrix.p as f32,
+        }
+    };
+
+    grid.next_generation(play_match);
+
+    Ok(grid.to_byte_array())
 }
 
 #[tauri::command]
@@ -431,7 +473,8 @@ pub fn run() {
                 run_game,
                 run_tournament,
                 run_evolution,
-                init_spatial_grid
+                init_spatial_grid,
+                step_spatial_grid
             ]
         )
         .run(tauri::generate_context!())

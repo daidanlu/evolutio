@@ -467,6 +467,9 @@ fn greet_engine() -> String {
 pub fn run() {
     tauri::Builder
         ::default()
+        .manage(GameState {
+            spatial_grid: Mutex::new(SpatialGrid::new(0, 0, SpatialStrategy::Cooperate)),
+        })
         .invoke_handler(
             tauri::generate_handler![
                 greet_engine,

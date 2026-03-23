@@ -355,7 +355,12 @@ function App() {
           )}
 
           <div className="flex justify-center my-6 shrink-0">
-            <SpatialCanvas width={100} height={100} trigger={spatialTrigger} />
+            <SpatialCanvas
+              width={100}
+              height={100}
+              trigger={spatialTrigger}
+              payoff={payoff}
+            />
           </div>
 
           {matchData && <GameGrid rounds={matchData.rounds} />}

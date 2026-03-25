@@ -360,6 +360,7 @@ function App() {
               height={100}
               trigger={spatialTrigger}
               payoff={payoff}
+              noise={noise}
             />
           </div>
 

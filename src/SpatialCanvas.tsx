@@ -6,9 +6,10 @@ interface SpatialCanvasProps {
     height: number;
     trigger: number
     payoff: { t: number; r: number; p: number; s: number };
+    noise: number;
 }
 
-export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, trigger, payoff }) => {
+export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, trigger, payoff, noise }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [generation, setGeneration] = useState(0);
@@ -56,7 +57,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
     const stepGrid = async () => {
         try {
-            const rawData: Uint8Array = await invoke("step_spatial_grid", { payoffMatrix: payoff });
+            const rawData: Uint8Array = await invoke("step_spatial_grid", {
+                payoffMatrix: payoff,
+                noise: noise
+            });
             renderDataToCanvas(rawData);
             setGeneration(prev => prev + 1);
         } catch (error) {
@@ -64,8 +68,6 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
             setIsPlaying(false);
         }
     };
-
-
 
     useEffect(() => {
         let intervalId: number;
@@ -77,7 +79,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         return () => {
             if (intervalId) window.clearInterval(intervalId);
         };
-    }, [isPlaying, payoff]);
+    }, [isPlaying, payoff, noise]);
 
     return (
         <div className="flex flex-col items-center p-4 bg-gray-900 rounded-xl border border-gray-700 shadow-2xl">

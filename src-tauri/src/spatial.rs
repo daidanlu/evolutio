@@ -64,7 +64,9 @@ impl<T: Clone> SpatialGrid<T> {
     }
 
     /// play_match is a closure that takes the policies of two agents and returns the score of the first agent.
-    pub fn next_generation<F>(&mut self, play_match: F) where F: Fn(&T, &T) -> f32 {
+    pub fn next_generation<F, M>(&mut self, play_match: F, mut mutate: M)
+        where F: Fn(&T, &T) -> f32, M: FnMut(&T) -> T
+    {
         let total_cells = self.width * self.height;
 
         // phase 1: local tournament
@@ -111,7 +113,7 @@ impl<T: Clone> SpatialGrid<T> {
                     }
                 }
 
-                next_gen_cells[idx] = best_strategy;
+                next_gen_cells[idx] = mutate(&best_strategy);
             }
         }
 
@@ -193,7 +195,7 @@ mod tests {
         };
 
         // In a 3x3 circular grid, the defector in the middle plays against the 8 cooperators, scoring: 8 * 5 = 40 points. The other cooperators play against each other 7 times and against the defector once, scoring: 7 * 3 + 1 * 0 = 21 points. Because 40 > 21, all cooperators will imitate the richest neighbor (the defector) in the next generation.
-        grid.next_generation(play_match);
+        grid.next_generation(play_match, |s| s.clone());
 
         for (i, cell) in grid.cells.iter().enumerate() {
             assert_eq!(

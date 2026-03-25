@@ -434,16 +434,15 @@ fn init_spatial_grid(
 #[tauri::command]
 fn step_spatial_grid(
     payoff_matrix: PayoffMatrix,
+    noise: f64,
     state: tauri::State<'_, GameState>
 ) -> Result<Vec<u8>, String> {
-    // Attempt to acquire the lock, return an error if unsuccessful.
     let mut grid = state.spatial_grid.lock().map_err(|e| e.to_string())?;
 
     if grid.width == 0 {
         return Err("Grid not initialized. Please click INIT SPATIAL GRID first.".to_string());
     }
 
-    // Convert the T/R/P/S received from the frontend into closure functions.
     let play_match = |p1: &SpatialStrategy, p2: &SpatialStrategy| -> f32 {
         match (p1, p2) {
             (SpatialStrategy::Cooperate, SpatialStrategy::Cooperate) => payoff_matrix.r as f32,
@@ -453,7 +452,18 @@ fn step_spatial_grid(
         }
     };
 
-    grid.next_generation(play_match);
+    let mutate = |strategy: &SpatialStrategy| -> SpatialStrategy {
+        if rand::random::<f64>() < noise {
+            match strategy {
+                SpatialStrategy::Cooperate => SpatialStrategy::Defect,
+                SpatialStrategy::Defect => SpatialStrategy::Cooperate,
+            }
+        } else {
+            strategy.clone()
+        }
+    };
+
+    grid.next_generation(play_match, mutate);
 
     Ok(grid.to_byte_array())
 }

@@ -15,6 +15,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const [generation, setGeneration] = useState(0);
     const [population, setPopulation] = useState({ blue: 0, red: 0 });
 
+    const [isPainting, setIsPainting] = useState(false);
+    const [paintStrategy, setPaintStrategy] = useState<number>(1); // 1 = Coop (blue), 0 = Defect (red)
+    const [brushSize, setBrushSize] = useState<number>(3);
+
     const renderDataToCanvas = (rawData: Uint8Array) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -42,11 +46,44 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
             }
         }
         ctx.putImageData(imageData, 0, 0);
-
-
         setPopulation({ blue: blueCount, red: redCount });
     };
 
+    const handlePaint = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!isPainting || !canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+
+
+        const scaleX = width / rect.width;
+        const scaleY = height / rect.height;
+
+        const x = Math.floor((e.clientX - rect.left) * scaleX);
+        const y = Math.floor((e.clientY - rect.top) * scaleY);
+
+        try {
+
+            const rawData: Uint8Array = await invoke("paint_spatial_grid", {
+                x: x,
+                y: y,
+                strategyVal: paintStrategy,
+                brushSize: brushSize
+            });
+
+            renderDataToCanvas(rawData);
+        } catch (error) {
+            console.error("Failed to paint grid:", error);
+        }
+    };
+
+    const startPainting = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        setIsPainting(true);
+        if (canvasRef.current) {
+            const fakeEvent = { ...e, clientX: e.clientX, clientY: e.clientY } as React.MouseEvent<HTMLCanvasElement>;
+            setTimeout(() => setIsPainting(true), 0);
+        }
+    };
 
     useEffect(() => {
         if (trigger === 0) return;
@@ -62,7 +99,6 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         };
         initGrid();
     }, [width, height, trigger]);
-
 
     const stepGrid = async () => {
         try {
@@ -105,6 +141,25 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 </span>
             </div>
 
+            <div className="flex gap-2 w-full justify-center mb-2">
+                <button
+                    onClick={() => setPaintStrategy(1)}
+                    className={`px-3 py-1 text-xs font-bold rounded border transition-all ${paintStrategy === 1 ? 'bg-sky-900/50 border-sky-500 text-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.4)]' : 'border-gray-600 text-gray-400 hover:border-gray-400'}`}
+                >
+                    🖌️ BLUE (COOP)
+                </button>
+                <button
+                    onClick={() => setPaintStrategy(0)}
+                    className={`px-3 py-1 text-xs font-bold rounded border transition-all ${paintStrategy === 0 ? 'bg-red-900/50 border-red-500 text-red-400 shadow-[0_0_8px_rgba(220,38,38,0.4)]' : 'border-gray-600 text-gray-400 hover:border-gray-400'}`}
+                >
+                    🖌️ RED (DEFECT)
+                </button>
+                <div className="flex items-center gap-2 px-2 text-xs text-gray-400 bg-gray-800 rounded border border-gray-700">
+                    <span title="Brush Size">SIZE</span>
+                    <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-16 accent-gray-400 cursor-pointer" />
+                </div>
+            </div>
+
             <canvas
                 ref={canvasRef}
                 width={width}
@@ -113,10 +168,18 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     width: `${width * 4}px`,
                     height: `${height * 4}px`,
                     imageRendering: "pixelated",
+                    cursor: "crosshair"
                 }}
                 className="border border-gray-600 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-sm mb-4"
-            />
 
+                onMouseDown={(e) => {
+                    setIsPainting(true);
+                    handlePaint(e);
+                }}
+                onMouseMove={handlePaint}
+                onMouseUp={() => setIsPainting(false)}
+                onMouseLeave={() => setIsPainting(false)}
+            />
 
             <div className="flex gap-2 w-full justify-center mb-4">
                 <button
@@ -136,7 +199,6 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     STEP +1
                 </button>
             </div>
-
 
             <div className="w-full mt-2 px-2">
                 <div className="flex justify-between text-[10px] font-mono mb-1">

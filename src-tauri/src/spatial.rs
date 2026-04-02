@@ -39,6 +39,13 @@ impl<T: Clone> SpatialGrid<T> {
         &self.cells[self.get_index(x, y)]
     }
 
+    pub fn set(&mut self, x: usize, y: usize, value: T) {
+        if x < self.width && y < self.height {
+            let index = y * self.width + x;
+            self.cells[index] = value;
+        }
+    }
+
     pub fn get_moore_neighbors_indices(&self, x: usize, y: usize) -> Vec<usize> {
         let mut neighbors = Vec::with_capacity(8);
 

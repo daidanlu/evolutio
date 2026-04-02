@@ -469,6 +469,41 @@ fn step_spatial_grid(
 }
 
 #[tauri::command]
+fn paint_spatial_grid(
+    x: usize,
+    y: usize,
+    strategy_val: u8,
+    brush_size: usize,
+    state: tauri::State<'_, GameState>
+) -> Result<Vec<u8>, String> {
+    let mut grid = state.spatial_grid.lock().map_err(|e| e.to_string())?;
+
+    if grid.width == 0 {
+        return Err("Grid not initialized.".to_string());
+    }
+
+    let new_strat = if strategy_val == 1 {
+        SpatialStrategy::Cooperate
+    } else {
+        SpatialStrategy::Defect
+    };
+
+    let half_brush = brush_size / 2;
+    let start_x = x.saturating_sub(half_brush);
+    let start_y = y.saturating_sub(half_brush);
+    let end_x = (x + half_brush).min(grid.width.saturating_sub(1));
+    let end_y = (y + half_brush).min(grid.height.saturating_sub(1));
+
+    for i in start_x..=end_x {
+        for j in start_y..=end_y {
+            grid.set(i, j, new_strat.clone());
+        }
+    }
+
+    Ok(grid.to_byte_array())
+}
+
+#[tauri::command]
 fn greet_engine() -> String {
     "Core Engine: v0.4.0 (Custom Payoff Ready)".to_string()
 }
@@ -487,7 +522,8 @@ pub fn run() {
                 run_tournament,
                 run_evolution,
                 init_spatial_grid,
-                step_spatial_grid
+                step_spatial_grid,
+                paint_spatial_grid
             ]
         )
         .run(tauri::generate_context!())

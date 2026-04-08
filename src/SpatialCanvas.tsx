@@ -14,7 +14,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const [isPlaying, setIsPlaying] = useState(false);
     const [generation, setGeneration] = useState(0);
     const [population, setPopulation] = useState({ blue: 0, red: 0 });
-
+    const [showSaved, setShowSaved] = useState(false);
     const [isPainting, setIsPainting] = useState(false);
     const [paintStrategy, setPaintStrategy] = useState<number>(1); // 1 = Coop (blue), 0 = Defect (red)
     const [brushSize, setBrushSize] = useState<number>(3);
@@ -130,6 +130,36 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const bluePercent = ((population.blue / totalCells) * 100).toFixed(1);
     const redPercent = ((population.red / totalCells) * 100).toFixed(1);
 
+    const downloadSnapshot = () => {
+        if (!canvasRef.current) return;
+        const scale = 10;
+        const offscreenCanvas = document.createElement("canvas");
+        offscreenCanvas.width = width * scale;
+        offscreenCanvas.height = height * scale;
+
+        const offCtx = offscreenCanvas.getContext("2d");
+        if (!offCtx) return;
+
+        offCtx.imageSmoothingEnabled = false;
+        offCtx.drawImage(
+            canvasRef.current,
+            0, 0, width, height,
+            0, 0, offscreenCanvas.width, offscreenCanvas.height
+        );
+
+        const dataUrl = offscreenCanvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.download = `evolutio_snapshot_gen${generation}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+
+        setShowSaved(true);
+        setTimeout(() => setShowSaved(false), 2000);
+    };
+
     return (
         <div className="flex flex-col items-center p-4 bg-gray-900 rounded-xl border border-gray-700 shadow-2xl">
             <div className="flex justify-between w-full mb-2 px-2 items-center">
@@ -197,6 +227,16 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     className="px-4 py-1 text-sm font-bold text-gray-400 border border-gray-600 rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     STEP +1
+                </button>
+                <button
+                    onClick={downloadSnapshot}
+                    disabled={showSaved}
+                    className={`px-4 py-1 text-sm font-bold border rounded transition-all duration-300 ${showSaved
+                            ? "text-green-400 border-green-500 bg-green-900/30 shadow-[0_0_10px_rgba(34,197,94,0.5)]"
+                            : "text-sky-400 border-sky-800 hover:bg-sky-900/30"
+                        }`}
+                >
+                    {showSaved ? "✅ SAVED!" : "📸 SNAPSHOT"}
                 </button>
             </div>
 

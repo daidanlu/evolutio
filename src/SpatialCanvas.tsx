@@ -18,6 +18,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const [isPainting, setIsPainting] = useState(false);
     const [paintStrategy, setPaintStrategy] = useState<number>(1); // 1 = Coop (blue), 0 = Defect (red)
     const [brushSize, setBrushSize] = useState<number>(3);
+    const [fps, setFps] = useState<number>(20);
 
     const renderDataToCanvas = (rawData: Uint8Array) => {
         const canvas = canvasRef.current;
@@ -119,7 +120,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         if (isPlaying) {
             intervalId = window.setInterval(() => {
                 stepGrid();
-            }, 50);
+            }, 1000 / fps);
         }
         return () => {
             if (intervalId) window.clearInterval(intervalId);
@@ -232,12 +233,23 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     onClick={downloadSnapshot}
                     disabled={showSaved}
                     className={`px-4 py-1 text-sm font-bold border rounded transition-all duration-300 ${showSaved
-                            ? "text-green-400 border-green-500 bg-green-900/30 shadow-[0_0_10px_rgba(34,197,94,0.5)]"
-                            : "text-sky-400 border-sky-800 hover:bg-sky-900/30"
+                        ? "text-green-400 border-green-500 bg-green-900/30 shadow-[0_0_10px_rgba(34,197,94,0.5)]"
+                        : "text-sky-400 border-sky-800 hover:bg-sky-900/30"
                         }`}
                 >
                     {showSaved ? "✅ SAVED!" : "📸 SNAPSHOT"}
                 </button>
+                <div className="flex flex-col ml-2 pl-4 border-l border-gray-700">
+                    <div className="flex justify-between items-center w-full mb-1">
+                        <span className="text-[10px] font-bold text-gray-400 tracking-wider">SPEED</span>
+                        <span className="text-[10px] text-sky-400 font-mono">{fps} FPS</span>
+                    </div>
+                    <input
+                        type="range" min="1" max="60" value={fps}
+                        onChange={(e) => setFps(Number(e.target.value))}
+                        className="w-24 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                    />
+                </div>
             </div>
 
             <div className="w-full mt-2 px-2">

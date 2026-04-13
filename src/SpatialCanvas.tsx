@@ -127,6 +127,39 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         };
     }, [isPlaying, payoff, noise]);
 
+    // Hotkey
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            switch (e.code) {
+                case "Space":
+                    e.preventDefault();
+                    setIsPlaying(prev => !prev);
+                    break;
+                case "ArrowRight":
+                case "KeyS": // S (Step)
+                    if (!isPlaying) stepGrid();
+                    break;
+                case "Digit1":
+                case "KeyC": // C(Coop)
+                    setPaintStrategy(1);
+                    break;
+                case "Digit2":
+                case "KeyD": // D (Defect)
+                    setPaintStrategy(0);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isPlaying, stepGrid]);
+
     const totalCells = width * height;
     const bluePercent = ((population.blue / totalCells) * 100).toFixed(1);
     const redPercent = ((population.red / totalCells) * 100).toFixed(1);
@@ -177,13 +210,13 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     onClick={() => setPaintStrategy(1)}
                     className={`px-3 py-1 text-xs font-bold rounded border transition-all ${paintStrategy === 1 ? 'bg-sky-900/50 border-sky-500 text-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.4)]' : 'border-gray-600 text-gray-400 hover:border-gray-400'}`}
                 >
-                    🖌️ BLUE (COOP)
+                    🖌️ BLUE (1)
                 </button>
                 <button
                     onClick={() => setPaintStrategy(0)}
                     className={`px-3 py-1 text-xs font-bold rounded border transition-all ${paintStrategy === 0 ? 'bg-red-900/50 border-red-500 text-red-400 shadow-[0_0_8px_rgba(220,38,38,0.4)]' : 'border-gray-600 text-gray-400 hover:border-gray-400'}`}
                 >
-                    🖌️ RED (DEFECT)
+                    🖌️ RED (2)
                 </button>
                 <div className="flex items-center gap-2 px-2 text-xs text-gray-400 bg-gray-800 rounded border border-gray-700">
                     <span title="Brush Size">SIZE</span>
@@ -220,14 +253,14 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                         : "text-green-400 border-green-700 hover:bg-green-900/30"
                         }`}
                 >
-                    {isPlaying ? "[||] PAUSE" : "[>] PLAY"}
+                    {isPlaying ? "[||] PAUSE (Space)" : "[>] PLAY (Space)"}
                 </button>
                 <button
                     onClick={stepGrid}
                     disabled={isPlaying}
                     className="px-4 py-1 text-sm font-bold text-gray-400 border border-gray-600 rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    STEP +1
+                    STEP +1 (→)
                 </button>
                 <button
                     onClick={downloadSnapshot}

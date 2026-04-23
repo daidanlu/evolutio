@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 interface SpatialCanvasProps {
     width: number;
     height: number;
-    trigger: number
+    trigger: number;
     payoff: { t: number; r: number; p: number; s: number };
     noise: number;
 }
@@ -16,9 +16,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const [population, setPopulation] = useState({ blue: 0, red: 0 });
     const [showSaved, setShowSaved] = useState(false);
     const [isPainting, setIsPainting] = useState(false);
-    const [paintStrategy, setPaintStrategy] = useState<number>(1); // 1 = Coop (blue), 0 = Defect (red)
+    const [paintStrategy, setPaintStrategy] = useState<number>(1);
     const [brushSize, setBrushSize] = useState<number>(3);
     const [fps, setFps] = useState<number>(20);
+    const [clustering, setClustering] = useState<string>("0.0");
 
     const renderDataToCanvas = (rawData: Uint8Array) => {
         const canvas = canvasRef.current;
@@ -48,14 +49,37 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         }
         ctx.putImageData(imageData, 0, 0);
         setPopulation({ blue: blueCount, red: redCount });
+
+        // clustering Index
+        let sameEdges = 0;
+        let totalEdges = 0;
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const idx = y * width + x;
+                const current = rawData[idx];
+
+                // go right
+                if (x < width - 1) {
+                    totalEdges++;
+                    if (current === rawData[idx + 1]) sameEdges++;
+                }
+                // go down
+                if (y < height - 1) {
+                    totalEdges++;
+                    if (current === rawData[idx + width]) sameEdges++;
+                }
+            }
+        }
+
+        const clusteringPercent = totalEdges > 0 ? ((sameEdges / totalEdges) * 100).toFixed(1) : "0.0";
+        setClustering(clusteringPercent);
     };
 
     const handlePaint = async (e: React.MouseEvent<HTMLCanvasElement>) => {
         if (!isPainting || !canvasRef.current) return;
-
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
-
 
         const scaleX = width / rect.width;
         const scaleY = height / rect.height;
@@ -64,14 +88,12 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         const y = Math.floor((e.clientY - rect.top) * scaleY);
 
         try {
-
             const rawData: Uint8Array = await invoke("paint_spatial_grid", {
                 x: x,
                 y: y,
                 strategyVal: paintStrategy,
                 brushSize: brushSize
             });
-
             renderDataToCanvas(rawData);
         } catch (error) {
             console.error("Failed to paint grid:", error);
@@ -81,7 +103,6 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const startPainting = (e: React.MouseEvent<HTMLCanvasElement>) => {
         setIsPainting(true);
         if (canvasRef.current) {
-            const fakeEvent = { ...e, clientX: e.clientX, clientY: e.clientY } as React.MouseEvent<HTMLCanvasElement>;
             setTimeout(() => setIsPainting(true), 0);
         }
     };
@@ -125,30 +146,28 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         return () => {
             if (intervalId) window.clearInterval(intervalId);
         };
-    }, [isPlaying, payoff, noise]);
+    }, [isPlaying, payoff, noise, fps]);
 
-    // Hotkey
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
                 return;
             }
-
             switch (e.code) {
                 case "Space":
                     e.preventDefault();
                     setIsPlaying(prev => !prev);
                     break;
                 case "ArrowRight":
-                case "KeyS": // S (Step)
+                case "KeyS":
                     if (!isPlaying) stepGrid();
                     break;
                 case "Digit1":
-                case "KeyC": // C(Coop)
+                case "KeyC":
                     setPaintStrategy(1);
                     break;
                 case "Digit2":
-                case "KeyD": // D (Defect)
+                case "KeyD":
                     setPaintStrategy(0);
                     break;
                 default:
@@ -188,7 +207,6 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-
 
         setShowSaved(true);
         setTimeout(() => setShowSaved(false), 2000);
@@ -235,7 +253,6 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     cursor: "crosshair"
                 }}
                 className="border border-gray-600 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-sm mb-4"
-
                 onMouseDown={(e) => {
                     setIsPainting(true);
                     handlePaint(e);
@@ -285,20 +302,21 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 </div>
             </div>
 
-            <div className="w-full mt-2 px-2">
-                <div className="flex justify-between text-[10px] font-mono mb-1">
-                    <span className="text-sky-400 font-bold tracking-widest">COOP ({bluePercent}%)</span>
-                    <span className="text-red-500 font-bold tracking-widest">DEFECT ({redPercent}%)</span>
+            <div className="w-full mt-2 px-2 flex flex-col gap-1">
+                <div className="flex justify-between items-end mb-1">
+                    <div className="flex gap-4">
+                        <span className="text-[10px] text-sky-400 font-bold tracking-widest">COOP ({bluePercent}%)</span>
+                        <span className="text-[10px] text-red-500 font-bold tracking-widest">DEFECT ({redPercent}%)</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                        <span className="text-[8px] text-gray-500 uppercase tracking-widest">Clustering Index</span>
+                        <span className="text-xs text-purple-400 font-mono font-bold">{clustering}%</span>
+                    </div>
                 </div>
+
                 <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden flex shadow-inner border border-gray-700">
-                    <div
-                        className="h-full bg-sky-500 transition-all duration-75"
-                        style={{ width: `${bluePercent}%` }}
-                    />
-                    <div
-                        className="h-full bg-red-600 transition-all duration-75"
-                        style={{ width: `${redPercent}%` }}
-                    />
+                    <div className="h-full bg-sky-500 transition-all duration-75" style={{ width: `${bluePercent}%` }} />
+                    <div className="h-full bg-red-600 transition-all duration-75" style={{ width: `${redPercent}%` }} />
                 </div>
             </div>
         </div>

@@ -21,6 +21,9 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const [fps, setFps] = useState<number>(20);
     const [clustering, setClustering] = useState<string>("0.0");
 
+    // Cache previous generation to visualize state transitions
+    const prevDataRef = useRef<Uint8Array | null>(null);
+
     const renderDataToCanvas = (rawData: Uint8Array) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -32,25 +35,38 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
         let blueCount = 0;
         let redCount = 0;
+        
+        const prevData = prevDataRef.current;
 
         for (let i = 0; i < rawData.length; i++) {
-            const strategy = rawData[i];
+            const current = rawData[i];
+            const previous = prevData ? prevData[i] : current; 
             const pixelIndex = i * 4;
 
-            if (strategy === 1) {
+            if (current === 1) {
                 blueCount++;
-                data[pixelIndex] = 14; data[pixelIndex + 1] = 165;
-                data[pixelIndex + 2] = 233; data[pixelIndex + 3] = 255;
+                if (previous === 1) {
+                    // Stable Coop (Blue)
+                    data[pixelIndex] = 14; data[pixelIndex + 1] = 165; data[pixelIndex + 2] = 233; data[pixelIndex + 3] = 255;
+                } else {
+                    // New Coop / Converted (Green)
+                    data[pixelIndex] = 52; data[pixelIndex + 1] = 211; data[pixelIndex + 2] = 153; data[pixelIndex + 3] = 255;
+                }
             } else {
                 redCount++;
-                data[pixelIndex] = 220; data[pixelIndex + 1] = 38;
-                data[pixelIndex + 2] = 38; data[pixelIndex + 3] = 255;
+                if (previous === 0) {
+                    // Stable Defect (Red)
+                    data[pixelIndex] = 220; data[pixelIndex + 1] = 38; data[pixelIndex + 2] = 38; data[pixelIndex + 3] = 255;
+                } else {
+                    // New Defect / Exploited (Yellow)
+                    data[pixelIndex] = 251; data[pixelIndex + 1] = 191; data[pixelIndex + 2] = 36; data[pixelIndex + 3] = 255;
+                }
             }
         }
         ctx.putImageData(imageData, 0, 0);
         setPopulation({ blue: blueCount, red: redCount });
 
-        // clustering Index
+        // Calculate Clustering Index
         let sameEdges = 0;
         let totalEdges = 0;
 
@@ -59,12 +75,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 const idx = y * width + x;
                 const current = rawData[idx];
 
-                // go right
                 if (x < width - 1) {
                     totalEdges++;
                     if (current === rawData[idx + 1]) sameEdges++;
                 }
-                // go down
                 if (y < height - 1) {
                     totalEdges++;
                     if (current === rawData[idx + width]) sameEdges++;
@@ -74,6 +88,9 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
         const clusteringPercent = totalEdges > 0 ? ((sameEdges / totalEdges) * 100).toFixed(1) : "0.0";
         setClustering(clusteringPercent);
+
+        // Store current frame for next generation comparison
+        prevDataRef.current = new Uint8Array(rawData);
     };
 
     const handlePaint = async (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -111,6 +128,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         if (trigger === 0) return;
         setIsPlaying(false);
         setGeneration(0);
+        prevDataRef.current = null; // Clear history cache on reset
         const initGrid = async () => {
             try {
                 const rawData: Uint8Array = await invoke("init_spatial_grid", { width, height });
@@ -318,6 +336,13 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     <div className="h-full bg-sky-500 transition-all duration-75" style={{ width: `${bluePercent}%` }} />
                     <div className="h-full bg-red-600 transition-all duration-75" style={{ width: `${redPercent}%` }} />
                 </div>
+            </div>
+
+            <div className="w-full px-2 mt-4 grid grid-cols-2 gap-x-2 gap-y-3 text-[9px] font-mono border-t border-gray-800 pt-3">
+                <div className="flex items-center gap-2 text-sky-400"><div className="w-3 h-3 bg-[#0ea5e9]"></div> STABLE COOP</div>
+                <div className="flex items-center gap-2 text-emerald-400"><div className="w-3 h-3 bg-[#34d399]"></div> NEW COOP (CONVERTED)</div>
+                <div className="flex items-center gap-2 text-red-500"><div className="w-3 h-3 bg-[#dc2626]"></div> STABLE DEFECT</div>
+                <div className="flex items-center gap-2 text-amber-400"><div className="w-3 h-3 bg-[#fbbf24]"></div> NEW DEFECT (EXPLOITED)</div>
             </div>
         </div>
     );

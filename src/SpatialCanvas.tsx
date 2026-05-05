@@ -35,7 +35,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
         let blueCount = 0;
         let redCount = 0;
-        
+
         const prevData = prevDataRef.current;
 
         for (let i = 0; i < rawData.length; i++) {
@@ -124,6 +124,23 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         }
     };
 
+    // Genesis Wipe Macro
+    const executeWipe = async (strategyVal: number) => {
+        try {
+            const rawData: Uint8Array = await invoke("paint_spatial_grid", {
+                x: Math.floor(width / 2),
+                y: Math.floor(height / 2),
+                strategyVal: strategyVal,
+                brushSize: Math.max(width, height) * 2 
+            });
+            prevDataRef.current = null;
+            setGeneration(0);
+            renderDataToCanvas(rawData);
+        } catch (error) {
+            console.error("Failed to wipe grid:", error);
+        }
+    };
+
     useEffect(() => {
         if (trigger === 0) return;
         setIsPlaying(false);
@@ -201,6 +218,16 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const bluePercent = ((population.blue / totalCells) * 100).toFixed(1);
     const redPercent = ((population.red / totalCells) * 100).toFixed(1);
 
+    // Background Telemetry Sync
+    useEffect(() => {
+        if (isPlaying) {
+            document.title = `[GEN ${generation}] 🔵 ${bluePercent}% | 🔴 ${redPercent}%`;
+        } else {
+            document.title = "EVOLUTIO | Axelrod Engine";
+        }
+        return () => { document.title = "EVOLUTIO | Axelrod Engine"; };
+    }, [generation, bluePercent, redPercent, isPlaying]);
+
     const downloadSnapshot = () => {
         if (!canvasRef.current) return;
         const scale = 10;
@@ -257,6 +284,23 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 <div className="flex items-center gap-2 px-2 text-xs text-gray-400 bg-gray-800 rounded border border-gray-700">
                     <span title="Brush Size">SIZE</span>
                     <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-16 accent-gray-400 cursor-pointer" />
+                </div>
+                
+                <div className="flex gap-1 ml-2 pl-2 border-l border-gray-700">
+                    <button 
+                        onClick={() => executeWipe(1)} 
+                        className="px-2 py-1 text-[10px] font-bold text-sky-400 border border-sky-800 rounded hover:bg-sky-900/50 transition-all"
+                        title="Flood the entire grid with Cooperators"
+                    >
+                        🌊 FLOOD
+                    </button>
+                    <button 
+                        onClick={() => executeWipe(0)} 
+                        className="px-2 py-1 text-[10px] font-bold text-red-500 border border-red-900 rounded hover:bg-red-900/50 transition-all"
+                        title="Nuke the entire grid with Defectors"
+                    >
+                        🌋 NUKE
+                    </button>
                 </div>
             </div>
 

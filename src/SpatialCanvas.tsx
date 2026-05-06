@@ -21,8 +21,15 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const [fps, setFps] = useState<number>(20);
     const [clustering, setClustering] = useState<string>("0.0");
 
+    // Volatility and ESS states
+    const [volatility, setVolatility] = useState<string>("0.00");
+    const [isESS, setIsESS] = useState<boolean>(false);
+
     // Cache previous generation to visualize state transitions
     const prevDataRef = useRef<Uint8Array | null>(null);
+    
+    // 👑 ANTI-AVALANCHE LOCK: Prevents async invoke stack overflow
+    const isProcessingRef = useRef<boolean>(false); 
 
     const renderDataToCanvas = (rawData: Uint8Array) => {
         const canvas = canvasRef.current;
@@ -35,6 +42,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
         let blueCount = 0;
         let redCount = 0;
+        let mutatedCount = 0;
 
         const prevData = prevDataRef.current;
 
@@ -51,6 +59,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 } else {
                     // New Coop / Converted (Green)
                     data[pixelIndex] = 52; data[pixelIndex + 1] = 211; data[pixelIndex + 2] = 153; data[pixelIndex + 3] = 255;
+                    mutatedCount++;
                 }
             } else {
                 redCount++;
@@ -60,6 +69,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 } else {
                     // New Defect / Exploited (Yellow)
                     data[pixelIndex] = 251; data[pixelIndex + 1] = 191; data[pixelIndex + 2] = 36; data[pixelIndex + 3] = 255;
+                    mutatedCount++;
                 }
             }
         }
@@ -88,6 +98,18 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
         const clusteringPercent = totalEdges > 0 ? ((sameEdges / totalEdges) * 100).toFixed(1) : "0.0";
         setClustering(clusteringPercent);
+
+        // Calculate System Volatility
+        const volPercent = ((mutatedCount / (width * height)) * 100).toFixed(2);
+        setVolatility(volPercent);
+
+        // 👑 STALE CLOSURE BYPASS: Use prevData check instead of generation > 0
+        if (prevData !== null && mutatedCount === 0) {
+            setIsESS(true);
+            setIsPlaying(false); // Force halt safely
+        } else {
+            setIsESS(false);
+        }
 
         // Store current frame for next generation comparison
         prevDataRef.current = new Uint8Array(rawData);
@@ -126,6 +148,8 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
     // Genesis Wipe Macro
     const executeWipe = async (strategyVal: number) => {
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
         try {
             const rawData: Uint8Array = await invoke("paint_spatial_grid", {
                 x: Math.floor(width / 2),
@@ -138,6 +162,8 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
             renderDataToCanvas(rawData);
         } catch (error) {
             console.error("Failed to wipe grid:", error);
+        } finally {
+            isProcessingRef.current = false;
         }
     };
 
@@ -145,7 +171,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         if (trigger === 0) return;
         setIsPlaying(false);
         setGeneration(0);
-        prevDataRef.current = null; // Clear history cache on reset
+        setIsESS(false);
+        prevDataRef.current = null; 
+        isProcessingRef.current = false; // Reset lock
+        
         const initGrid = async () => {
             try {
                 const rawData: Uint8Array = await invoke("init_spatial_grid", { width, height });
@@ -158,6 +187,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     }, [width, height, trigger]);
 
     const stepGrid = async () => {
+        // 👑 THE LOCK: Drop frame if previous IPC call is still resolving
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
+
         try {
             const rawData: Uint8Array = await invoke("step_spatial_grid", {
                 payoffMatrix: payoff,
@@ -168,6 +201,9 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         } catch (error) {
             console.error("Failed to step grid:", error);
             setIsPlaying(false);
+        } finally {
+            // Unlock after render is fully complete
+            isProcessingRef.current = false;
         }
     };
 
@@ -260,9 +296,16 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     return (
         <div className="flex flex-col items-center p-4 bg-gray-900 rounded-xl border border-gray-700 shadow-2xl">
             <div className="flex justify-between w-full mb-2 px-2 items-center">
-                <h3 className="text-gray-300 font-bold font-mono text-sm tracking-wider">
-                    SPATIAL CA
-                </h3>
+                <div className="flex items-center gap-3">
+                    <h3 className="text-gray-300 font-bold font-mono text-sm tracking-wider">
+                        SPATIAL CA
+                    </h3>
+                    {isESS && (
+                        <span className="text-[10px] font-bold text-yellow-400 bg-yellow-900/40 border border-yellow-500 px-1.5 py-0.5 rounded animate-pulse shadow-[0_0_8px_rgba(250,204,21,0.4)]">
+                            ESS REACHED
+                        </span>
+                    )}
+                </div>
                 <span className="text-xs text-green-500 font-mono border border-green-800 bg-green-900/30 px-2 py-0.5 rounded">
                     GEN: {generation}
                 </span>
@@ -370,9 +413,18 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                         <span className="text-[10px] text-sky-400 font-bold tracking-widest">COOP ({bluePercent}%)</span>
                         <span className="text-[10px] text-red-500 font-bold tracking-widest">DEFECT ({redPercent}%)</span>
                     </div>
-                    <div className="flex flex-col items-end">
-                        <span className="text-[8px] text-gray-500 uppercase tracking-widest">Clustering Index</span>
-                        <span className="text-xs text-purple-400 font-mono font-bold">{clustering}%</span>
+                    
+                    <div className="flex gap-4 items-end">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[8px] text-gray-500 uppercase tracking-widest">Volatility</span>
+                            <span className={`text-xs font-mono font-bold ${volatility === "0.00" ? 'text-gray-500' : 'text-orange-400'}`}>
+                                {volatility}%
+                            </span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[8px] text-gray-500 uppercase tracking-widest">Clustering</span>
+                            <span className="text-xs text-purple-400 font-mono font-bold">{clustering}%</span>
+                        </div>
                     </div>
                 </div>
 

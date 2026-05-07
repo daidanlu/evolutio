@@ -28,7 +28,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     // Cache previous generation to visualize state transitions
     const prevDataRef = useRef<Uint8Array | null>(null);
     
-    // 👑 ANTI-AVALANCHE LOCK: Prevents async invoke stack overflow
+    // Concurrency Lock: Prevents asynchronous invoke stack overflow during high FPS rendering
     const isProcessingRef = useRef<boolean>(false); 
 
     const renderDataToCanvas = (rawData: Uint8Array) => {
@@ -54,20 +54,20 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
             if (current === 1) {
                 blueCount++;
                 if (previous === 1) {
-                    // Stable Coop (Blue)
+                    // Stable Cooperator (Blue)
                     data[pixelIndex] = 14; data[pixelIndex + 1] = 165; data[pixelIndex + 2] = 233; data[pixelIndex + 3] = 255;
                 } else {
-                    // New Coop / Converted (Green)
+                    // Converted Cooperator (Green)
                     data[pixelIndex] = 52; data[pixelIndex + 1] = 211; data[pixelIndex + 2] = 153; data[pixelIndex + 3] = 255;
                     mutatedCount++;
                 }
             } else {
                 redCount++;
                 if (previous === 0) {
-                    // Stable Defect (Red)
+                    // Stable Defector (Red)
                     data[pixelIndex] = 220; data[pixelIndex + 1] = 38; data[pixelIndex + 2] = 38; data[pixelIndex + 3] = 255;
                 } else {
-                    // New Defect / Exploited (Yellow)
+                    // Exploited Defector (Yellow)
                     data[pixelIndex] = 251; data[pixelIndex + 1] = 191; data[pixelIndex + 2] = 36; data[pixelIndex + 3] = 255;
                     mutatedCount++;
                 }
@@ -76,7 +76,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         ctx.putImageData(imageData, 0, 0);
         setPopulation({ blue: blueCount, red: redCount });
 
-        // Calculate Clustering Index
+        // Calculate Spatial Clustering Index (Assortativity)
         let sameEdges = 0;
         let totalEdges = 0;
 
@@ -99,19 +99,19 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         const clusteringPercent = totalEdges > 0 ? ((sameEdges / totalEdges) * 100).toFixed(1) : "0.0";
         setClustering(clusteringPercent);
 
-        // Calculate System Volatility
+        // Calculate System Volatility metrics
         const volPercent = ((mutatedCount / (width * height)) * 100).toFixed(2);
         setVolatility(volPercent);
 
-        // 👑 STALE CLOSURE BYPASS: Use prevData check instead of generation > 0
+        // Stale Closure Bypass: Evaluate previous data reference to determine valid halting state
         if (prevData !== null && mutatedCount === 0) {
             setIsESS(true);
-            setIsPlaying(false); // Force halt safely
+            setIsPlaying(false); // Force halt execution safely
         } else {
             setIsESS(false);
         }
 
-        // Store current frame for next generation comparison
+        // Store current frame state for temporal comparison in the next generation
         prevDataRef.current = new Uint8Array(rawData);
     };
 
@@ -146,7 +146,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         }
     };
 
-    // Genesis Wipe Macro
+    // Genesis Matrix Macro: Overwrites the entire grid with a homogeneous strategy
     const executeWipe = async (strategyVal: number) => {
         if (isProcessingRef.current) return;
         isProcessingRef.current = true;
@@ -161,7 +161,28 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
             setGeneration(0);
             renderDataToCanvas(rawData);
         } catch (error) {
-            console.error("Failed to wipe grid:", error);
+            console.error("Failed to execute grid wipe:", error);
+        } finally {
+            isProcessingRef.current = false;
+        }
+    };
+
+    // Patient Zero Protocol: Injects a singular defector agent at the geometric center
+    const executePatientZero = async () => {
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
+        try {
+            const rawData: Uint8Array = await invoke("paint_spatial_grid", {
+                x: Math.floor(width / 2),
+                y: Math.floor(height / 2),
+                strategyVal: 0, 
+                brushSize: 1    
+            });
+            prevDataRef.current = null;
+            setGeneration(0);
+            renderDataToCanvas(rawData);
+        } catch (error) {
+            console.error("Failed to inject Patient Zero anomaly:", error);
         } finally {
             isProcessingRef.current = false;
         }
@@ -173,21 +194,21 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         setGeneration(0);
         setIsESS(false);
         prevDataRef.current = null; 
-        isProcessingRef.current = false; // Reset lock
+        isProcessingRef.current = false; 
         
         const initGrid = async () => {
             try {
                 const rawData: Uint8Array = await invoke("init_spatial_grid", { width, height });
                 renderDataToCanvas(rawData);
             } catch (error) {
-                console.error("Failed to init grid:", error);
+                console.error("Failed to initialize spatial grid:", error);
             }
         };
         initGrid();
     }, [width, height, trigger]);
 
     const stepGrid = async () => {
-        // 👑 THE LOCK: Drop frame if previous IPC call is still resolving
+        // Concurrency Lock Check: Drop frame if the previous IPC cycle is unresolved
         if (isProcessingRef.current) return;
         isProcessingRef.current = true;
 
@@ -199,10 +220,9 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
             renderDataToCanvas(rawData);
             setGeneration(prev => prev + 1);
         } catch (error) {
-            console.error("Failed to step grid:", error);
+            console.error("Failed to step computational grid:", error);
             setIsPlaying(false);
         } finally {
-            // Unlock after render is fully complete
             isProcessingRef.current = false;
         }
     };
@@ -254,10 +274,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
     const bluePercent = ((population.blue / totalCells) * 100).toFixed(1);
     const redPercent = ((population.red / totalCells) * 100).toFixed(1);
 
-    // Background Telemetry Sync
+    // Background Telemetry Synchronization
     useEffect(() => {
         if (isPlaying) {
-            document.title = `[GEN ${generation}] 🔵 ${bluePercent}% | 🔴 ${redPercent}%`;
+            document.title = `[GEN ${generation}] COOP ${bluePercent}% | DEFECT ${redPercent}%`;
         } else {
             document.title = "EVOLUTIO | Axelrod Engine";
         }
@@ -293,6 +313,19 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         setTimeout(() => setShowSaved(false), 2000);
     };
 
+    // Dynamic Reactor Aura: Computes canvas box-shadow luminescence based on kinetic volatility
+    const volNum = parseFloat(volatility);
+    let canvasGlow = "shadow-[0_0_15px_rgba(0,0,0,0.5)] border-gray-600"; 
+    if (isESS) {
+        canvasGlow = "shadow-[0_0_40px_rgba(250,204,21,0.3)] border-yellow-500/50"; // ESS Absorbing State
+    } else if (volNum > 10) {
+        canvasGlow = "shadow-[0_0_50px_rgba(220,38,38,0.4)] border-red-500/50"; // High Kinetic Conflict
+    } else if (volNum > 2) {
+        canvasGlow = "shadow-[0_0_30px_rgba(245,158,11,0.3)] border-orange-500/40"; // Localized Boundary Shifts
+    } else if (volNum > 0) {
+        canvasGlow = "shadow-[0_0_30px_rgba(14,165,233,0.2)] border-sky-500/30"; // Stabilization Phase
+    }
+
     return (
         <div className="flex flex-col items-center p-4 bg-gray-900 rounded-xl border border-gray-700 shadow-2xl">
             <div className="flex justify-between w-full mb-2 px-2 items-center">
@@ -316,37 +349,46 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     onClick={() => setPaintStrategy(1)}
                     className={`px-3 py-1 text-xs font-bold rounded border transition-all ${paintStrategy === 1 ? 'bg-sky-900/50 border-sky-500 text-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.4)]' : 'border-gray-600 text-gray-400 hover:border-gray-400'}`}
                 >
-                    🖌️ BLUE (1)
+                    BLUE (1)
                 </button>
                 <button
                     onClick={() => setPaintStrategy(0)}
                     className={`px-3 py-1 text-xs font-bold rounded border transition-all ${paintStrategy === 0 ? 'bg-red-900/50 border-red-500 text-red-400 shadow-[0_0_8px_rgba(220,38,38,0.4)]' : 'border-gray-600 text-gray-400 hover:border-gray-400'}`}
                 >
-                    🖌️ RED (2)
+                    RED (2)
                 </button>
                 <div className="flex items-center gap-2 px-2 text-xs text-gray-400 bg-gray-800 rounded border border-gray-700">
                     <span title="Brush Size">SIZE</span>
                     <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-16 accent-gray-400 cursor-pointer" />
                 </div>
                 
+                {/* Environmental Macro Operations */}
                 <div className="flex gap-1 ml-2 pl-2 border-l border-gray-700">
                     <button 
                         onClick={() => executeWipe(1)} 
                         className="px-2 py-1 text-[10px] font-bold text-sky-400 border border-sky-800 rounded hover:bg-sky-900/50 transition-all"
                         title="Flood the entire grid with Cooperators"
                     >
-                        🌊 FLOOD
+                        FLOOD
+                    </button>
+                    <button 
+                        onClick={executePatientZero} 
+                        className="px-2 py-1 text-[10px] font-bold text-emerald-400 border border-emerald-800 rounded hover:bg-emerald-900/50 transition-all"
+                        title="Inject a single Defector (Patient Zero) in the center"
+                    >
+                        PT-ZERO
                     </button>
                     <button 
                         onClick={() => executeWipe(0)} 
                         className="px-2 py-1 text-[10px] font-bold text-red-500 border border-red-900 rounded hover:bg-red-900/50 transition-all"
                         title="Nuke the entire grid with Defectors"
                     >
-                        🌋 NUKE
+                        NUKE
                     </button>
                 </div>
             </div>
 
+            {/* Spatial Grid Rendering Canvas */}
             <canvas
                 ref={canvasRef}
                 width={width}
@@ -357,7 +399,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     imageRendering: "pixelated",
                     cursor: "crosshair"
                 }}
-                className="border border-gray-600 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-sm mb-4"
+                className={`border rounded-sm mb-4 transition-all duration-700 ${canvasGlow}`}
                 onMouseDown={(e) => {
                     setIsPainting(true);
                     handlePaint(e);
@@ -375,7 +417,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                         : "text-green-400 border-green-700 hover:bg-green-900/30"
                         }`}
                 >
-                    {isPlaying ? "[||] PAUSE (Space)" : "[>] PLAY (Space)"}
+                    {isPlaying ? "PAUSE (Space)" : "PLAY (Space)"}
                 </button>
                 <button
                     onClick={stepGrid}
@@ -392,7 +434,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                         : "text-sky-400 border-sky-800 hover:bg-sky-900/30"
                         }`}
                 >
-                    {showSaved ? "✅ SAVED!" : "📸 SNAPSHOT"}
+                    {showSaved ? "SAVED!" : "SNAPSHOT"}
                 </button>
                 <div className="flex flex-col ml-2 pl-4 border-l border-gray-700">
                     <div className="flex justify-between items-center w-full mb-1">

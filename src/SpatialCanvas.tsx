@@ -27,9 +27,12 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
     // Cache previous generation to visualize state transitions
     const prevDataRef = useRef<Uint8Array | null>(null);
-    
+
     // Concurrency Lock: Prevents asynchronous invoke stack overflow during high FPS rendering
-    const isProcessingRef = useRef<boolean>(false); 
+    const isProcessingRef = useRef<boolean>(false);
+
+    // Empirical Telemetry Logger: Silently records metrics per generation for CSV export
+    const telemetryLogRef = useRef<Array<{ gen: number, coop: string, defect: string, vol: string, cluster: string }>>([]);
 
     const renderDataToCanvas = (rawData: Uint8Array) => {
         const canvas = canvasRef.current;
@@ -48,7 +51,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
         for (let i = 0; i < rawData.length; i++) {
             const current = rawData[i];
-            const previous = prevData ? prevData[i] : current; 
+            const previous = prevData ? prevData[i] : current;
             const pixelIndex = i * 4;
 
             if (current === 1) {
@@ -113,6 +116,19 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
 
         // Store current frame state for temporal comparison in the next generation
         prevDataRef.current = new Uint8Array(rawData);
+
+        // Record Empirical Data silently
+        const totalCells = width * height;
+        const bp = ((blueCount / totalCells) * 100).toFixed(1);
+        const rp = ((redCount / totalCells) * 100).toFixed(1);
+
+        telemetryLogRef.current.push({
+            gen: telemetryLogRef.current.length,
+            coop: bp,
+            defect: rp,
+            vol: volPercent,
+            cluster: clusteringPercent
+        });
     };
 
     const handlePaint = async (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -155,9 +171,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 x: Math.floor(width / 2),
                 y: Math.floor(height / 2),
                 strategyVal: strategyVal,
-                brushSize: Math.max(width, height) * 2 
+                brushSize: Math.max(width, height) * 2
             });
             prevDataRef.current = null;
+            telemetryLogRef.current = []; // Reset telemetry log
             setGeneration(0);
             renderDataToCanvas(rawData);
         } catch (error) {
@@ -175,10 +192,11 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
             const rawData: Uint8Array = await invoke("paint_spatial_grid", {
                 x: Math.floor(width / 2),
                 y: Math.floor(height / 2),
-                strategyVal: 0, 
-                brushSize: 1    
+                strategyVal: 0,
+                brushSize: 1
             });
             prevDataRef.current = null;
+            telemetryLogRef.current = []; // Reset telemetry log
             setGeneration(0);
             renderDataToCanvas(rawData);
         } catch (error) {
@@ -193,9 +211,10 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         setIsPlaying(false);
         setGeneration(0);
         setIsESS(false);
-        prevDataRef.current = null; 
-        isProcessingRef.current = false; 
-        
+        prevDataRef.current = null;
+        isProcessingRef.current = false;
+        telemetryLogRef.current = []; // Reset telemetry log on new trigger
+
         const initGrid = async () => {
             try {
                 const rawData: Uint8Array = await invoke("init_spatial_grid", { width, height });
@@ -313,9 +332,29 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
         setTimeout(() => setShowSaved(false), 2000);
     };
 
+    // Export Telemetry Data to CSV
+    const exportTelemetryCSV = () => {
+        if (telemetryLogRef.current.length === 0) return;
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Generation,Coop_Percent,Defect_Percent,Volatility,Clustering\n"; // CSV Header
+
+        telemetryLogRef.current.forEach(row => {
+            csvContent += `${row.gen},${row.coop},${row.defect},${row.vol},${row.cluster}\n`;
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `evolutio_telemetry_gen${generation}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     // Dynamic Reactor Aura: Computes canvas box-shadow luminescence based on kinetic volatility
     const volNum = parseFloat(volatility);
-    let canvasGlow = "shadow-[0_0_15px_rgba(0,0,0,0.5)] border-gray-600"; 
+    let canvasGlow = "shadow-[0_0_15px_rgba(0,0,0,0.5)] border-gray-600";
     if (isESS) {
         canvasGlow = "shadow-[0_0_40px_rgba(250,204,21,0.3)] border-yellow-500/50"; // ESS Absorbing State
     } else if (volNum > 10) {
@@ -361,25 +400,25 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                     <span title="Brush Size">SIZE</span>
                     <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-16 accent-gray-400 cursor-pointer" />
                 </div>
-                
+
                 {/* Environmental Macro Operations */}
                 <div className="flex gap-1 ml-2 pl-2 border-l border-gray-700">
-                    <button 
-                        onClick={() => executeWipe(1)} 
+                    <button
+                        onClick={() => executeWipe(1)}
                         className="px-2 py-1 text-[10px] font-bold text-sky-400 border border-sky-800 rounded hover:bg-sky-900/50 transition-all"
                         title="Flood the entire grid with Cooperators"
                     >
                         FLOOD
                     </button>
-                    <button 
-                        onClick={executePatientZero} 
+                    <button
+                        onClick={executePatientZero}
                         className="px-2 py-1 text-[10px] font-bold text-emerald-400 border border-emerald-800 rounded hover:bg-emerald-900/50 transition-all"
                         title="Inject a single Defector (Patient Zero) in the center"
                     >
                         PT-ZERO
                     </button>
-                    <button 
-                        onClick={() => executeWipe(0)} 
+                    <button
+                        onClick={() => executeWipe(0)}
                         className="px-2 py-1 text-[10px] font-bold text-red-500 border border-red-900 rounded hover:bg-red-900/50 transition-all"
                         title="Nuke the entire grid with Defectors"
                     >
@@ -428,14 +467,17 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                 </button>
                 <button
                     onClick={downloadSnapshot}
-                    disabled={showSaved}
-                    className={`px-4 py-1 text-sm font-bold border rounded transition-all duration-300 ${showSaved
-                        ? "text-green-400 border-green-500 bg-green-900/30 shadow-[0_0_10px_rgba(34,197,94,0.5)]"
-                        : "text-sky-400 border-sky-800 hover:bg-sky-900/30"
-                        }`}
+                    className="px-4 py-1 text-sm font-bold border rounded transition-all duration-300 text-sky-400 border-sky-800 hover:bg-sky-900/30"
                 >
-                    {showSaved ? "SAVED!" : "SNAPSHOT"}
+                    SNAPSHOT
                 </button>
+                <button
+                    onClick={exportTelemetryCSV}
+                    className="px-4 py-1 text-sm font-bold text-emerald-400 border border-emerald-800 rounded hover:bg-emerald-900/30 transition-all duration-300"
+                >
+                    EXPORT CSV
+                </button>
+
                 <div className="flex flex-col ml-2 pl-4 border-l border-gray-700">
                     <div className="flex justify-between items-center w-full mb-1">
                         <span className="text-[10px] font-bold text-gray-400 tracking-wider">SPEED</span>
@@ -455,7 +497,7 @@ export const SpatialCanvas: React.FC<SpatialCanvasProps> = ({ width, height, tri
                         <span className="text-[10px] text-sky-400 font-bold tracking-widest">COOP ({bluePercent}%)</span>
                         <span className="text-[10px] text-red-500 font-bold tracking-widest">DEFECT ({redPercent}%)</span>
                     </div>
-                    
+
                     <div className="flex gap-4 items-end">
                         <div className="flex flex-col items-end">
                             <span className="text-[8px] text-gray-500 uppercase tracking-widest">Volatility</span>
